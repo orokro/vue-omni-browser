@@ -11,10 +11,10 @@
  *  - Apply the :theme prop as CSS custom properties on the root element
  *  - Manage the global loading overlay
  *  - Expose the VobApi via defineExpose
- *  - Inject the Material Icons font link when enableMaterialIcons: true
+ *  - Load the Material Icons font (bundled via material-icons npm package)
  */
 
-import { ref, computed, provide, watch, onMounted, onUnmounted, type Ref } from 'vue';
+import { ref, computed, provide, watch, type Ref } from 'vue';
 import type {
 	VobConfig,
 	VobDataSpec,
@@ -49,6 +49,11 @@ import CustomBar from './rows/CustomBar.vue';
 import ContentArea from './content/ContentArea.vue';
 
 import '../styles/main.scss';
+// Material Icons font — bundled locally via the material-icons npm package.
+// The font files only download from the user's server when the browser actually
+// encounters a .material-icons element, so there's no cost when icons aren't used.
+// The enableMaterialIcons config flag controls rendering in VobIcon.vue, not loading.
+import 'material-icons/iconfont/material-icons.css';
 
 // ----------------------------------------------------------------
 // Props & emits
@@ -135,41 +140,6 @@ watch(viewMode.viewMode, (newMode, oldMode) => {
 	if (oldMode === VOB.VIEW_MODES.COLUMNS && newMode !== VOB.VIEW_MODES.COLUMNS) {
 		// currentPathIds already equals the rightmost column (maintained by navigation).
 		// No extra work needed — history already has the correct snapshot.
-	}
-});
-
-// ----------------------------------------------------------------
-// Material Icons font injection
-// ----------------------------------------------------------------
-
-let fontLinkEl: HTMLLinkElement | null = null;
-
-function injectMaterialIconsFont(): void {
-	if (fontLinkEl || document.querySelector('[data-vob-icons]')) return;
-	fontLinkEl = document.createElement('link');
-	fontLinkEl.rel = 'stylesheet';
-	fontLinkEl.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
-	fontLinkEl.setAttribute('data-vob-icons', '');
-	document.head.appendChild(fontLinkEl);
-}
-
-onMounted(() => {
-	if (configRef.value.enableMaterialIcons) injectMaterialIconsFont();
-});
-
-watch(() => configRef.value.enableMaterialIcons, (enabled) => {
-	if (enabled) injectMaterialIconsFont();
-	// Note: we intentionally don't remove the font on disable — it may be used
-	// by other instances on the page.
-});
-
-onUnmounted(() => {
-	// Only remove if this is the last instance using it.
-	// (Simple check — a ref-counted approach is overkill for a font link.)
-	const allInstances = document.querySelectorAll('.vob-container');
-	if (allInstances.length <= 1 && fontLinkEl) {
-		fontLinkEl.remove();
-		fontLinkEl = null;
 	}
 });
 
