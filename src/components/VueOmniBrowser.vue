@@ -23,7 +23,6 @@ import type {
 	VobTheme,
 	VobApi,
 	VobItem,
-	VobItemInput,
 } from '../types';
 import { VOB } from '../constants';
 import { useVobEngine } from '../core/useVobEngine';
@@ -32,6 +31,7 @@ import { useSelection } from '../core/useSelection';
 import { useSortFilter } from '../core/useSortFilter';
 import { useViewMode } from '../core/useViewMode';
 import { useClipboard } from '../core/useClipboard';
+import { useInlineRename } from '../core/useInlineRename';
 import {
 	VOB_ENGINE_KEY,
 	VOB_NAVIGATION_KEY,
@@ -41,6 +41,7 @@ import {
 	VOB_CLIPBOARD_KEY,
 	VOB_CONFIG_KEY,
 	VOB_DATA_SPEC_KEY,
+	VOB_INLINE_RENAME_KEY,
 } from '../injectionKeys';
 import NavBar from './rows/NavBar.vue';
 import ButtonsBar from './rows/ButtonsBar.vue';
@@ -96,25 +97,27 @@ watch(() => props.data, (newData) => {
 // Initialise composables
 // ----------------------------------------------------------------
 
-const engine     = useVobEngine(configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>, dataRef);
-const navigation = useNavigation(engine, configRef as Ref<VobConfig>);
-const selection  = useSelection(engine, configRef as Ref<VobConfig>);
-const sortFilter = useSortFilter();
-const viewMode   = useViewMode(configRef as Ref<VobConfig>);
-const clipboard  = useClipboard(engine, navigation, configRef as Ref<VobConfig>);
+const engine      = useVobEngine(configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>, dataRef);
+const navigation  = useNavigation(engine, configRef as Ref<VobConfig>);
+const selection   = useSelection(engine, configRef as Ref<VobConfig>);
+const sortFilter  = useSortFilter();
+const viewMode    = useViewMode(configRef as Ref<VobConfig>);
+const clipboard   = useClipboard(engine, navigation, configRef as Ref<VobConfig>);
+const inlineRename = useInlineRename(engine, configRef as Ref<VobConfig>);
 
 // ----------------------------------------------------------------
 // Provide to all descendants
 // ----------------------------------------------------------------
 
-provide(VOB_ENGINE_KEY,     engine);
-provide(VOB_NAVIGATION_KEY, navigation);
-provide(VOB_SELECTION_KEY,  selection);
-provide(VOB_SORT_FILTER_KEY,sortFilter);
-provide(VOB_VIEW_MODE_KEY,  viewMode);
-provide(VOB_CLIPBOARD_KEY,  clipboard);
-provide(VOB_CONFIG_KEY,     configRef as Ref<VobConfig>);
-provide(VOB_DATA_SPEC_KEY,  dataSpecRef as Ref<VobDataSpec>);
+provide(VOB_ENGINE_KEY,        engine);
+provide(VOB_NAVIGATION_KEY,    navigation);
+provide(VOB_SELECTION_KEY,     selection);
+provide(VOB_SORT_FILTER_KEY,   sortFilter);
+provide(VOB_VIEW_MODE_KEY,     viewMode);
+provide(VOB_CLIPBOARD_KEY,     clipboard);
+provide(VOB_CONFIG_KEY,        configRef as Ref<VobConfig>);
+provide(VOB_DATA_SPEC_KEY,     dataSpecRef as Ref<VobDataSpec>);
+provide(VOB_INLINE_RENAME_KEY, inlineRename);
 
 // ----------------------------------------------------------------
 // Emit navigate when the path changes

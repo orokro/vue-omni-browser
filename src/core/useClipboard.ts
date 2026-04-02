@@ -18,7 +18,6 @@ import { ref, computed, type Ref } from 'vue';
 import type { VobConfig, VobItem, VobClipboard } from '../types';
 import type { VobEngine } from './useVobEngine';
 import type { VobNavigation } from './useNavigation';
-import { generateId } from '../utils/idUtils';
 
 // ----------------------------------------------------------------
 // Types
@@ -75,7 +74,7 @@ export interface VobClipboardState {
  */
 export function useClipboard(
 	engine: VobEngine,
-	navigation: VobNavigation,
+	_navigation: VobNavigation,
 	config: Ref<VobConfig>,
 ): VobClipboardState {
 	const clipboard = ref<VobClipboard | null>(null);

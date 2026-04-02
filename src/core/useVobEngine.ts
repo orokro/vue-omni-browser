@@ -73,6 +73,12 @@ export interface VobEngine {
 	 */
 	deleteItems: (ids: string[]) => string[];
 	/**
+	 * Patches a single item in the registry with the provided fields.
+	 * Does NOT mutate the user's :data prop.
+	 * @returns True if the item was found and updated; false if the ID is unknown.
+	 */
+	updateItem: (id: string, updates: Partial<Omit<VobItem, 'id'>>) => boolean;
+	/**
 	 * A counter that increments each time the registry is rebuilt from source data.
 	 * Watchers can use this to detect bulk data changes vs. single-item mutations.
 	 */
@@ -210,7 +216,7 @@ export function useVobEngine(
 	 */
 	function createItem(data: Omit<VobItem, 'id'>): string {
 		const id = generateId();
-		const newItem: VobItem = { id, ...data };
+		const newItem = { id, ...data } as VobItem;
 
 		// Build a new Map to ensure shallowRef triggers reactivity.
 		const newMap = new Map(registry.value);
@@ -252,6 +258,23 @@ export function useVobEngine(
 	}
 
 	/**
+	 * Patches a single item in the registry with the provided fields.
+	 * Triggers reactivity by replacing the registry Map reference.
+	 * @returns True if the item was found and updated; false if the ID is unknown.
+	 */
+	function updateItem(id: string, updates: Partial<Omit<VobItem, 'id'>>): boolean {
+		const item = registry.value.get(id);
+		if (!item) return false;
+
+		const newMap = new Map(registry.value);
+		newMap.set(id, { ...item, ...updates } as VobItem);
+		registry.value = newMap;
+		registryVersion.value++;
+
+		return true;
+	}
+
+	/**
 	 * Re-ingests the current :data prop value.
 	 * Called by the public refresh() API and internally after async dataLoader calls.
 	 */
@@ -274,5 +297,6 @@ export function useVobEngine(
 		refresh,
 		createItem,
 		deleteItems,
+		updateItem,
 	};
 }

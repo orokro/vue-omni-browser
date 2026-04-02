@@ -78,4 +78,5 @@ export {
 	VOB_CLIPBOARD_KEY,
 	VOB_CONFIG_KEY,
 	VOB_DATA_SPEC_KEY,
+	VOB_INLINE_RENAME_KEY,
 } from './injectionKeys';

@@ -19,6 +19,7 @@ import type { VobSelection } from './core/useSelection';
 import type { VobSortFilter } from './core/useSortFilter';
 import type { VobViewModeState } from './core/useViewMode';
 import type { VobClipboardState } from './core/useClipboard';
+import type { VobInlineRenameState } from './core/useInlineRename';
 
 export const VOB_ENGINE_KEY: InjectionKey<VobEngine> = Symbol('vob-engine');
 export const VOB_NAVIGATION_KEY: InjectionKey<VobNavigation> = Symbol('vob-navigation');
@@ -32,3 +33,6 @@ export const VOB_CONFIG_KEY: InjectionKey<Ref<VobConfig>> = Symbol('vob-config')
 
 /** The resolved dataSpec ref, provided by VueOmniBrowser.vue. */
 export const VOB_DATA_SPEC_KEY: InjectionKey<Ref<VobDataSpec>> = Symbol('vob-data-spec');
+
+/** The inline rename state, provided by VueOmniBrowser.vue. */
+export const VOB_INLINE_RENAME_KEY: InjectionKey<VobInlineRenameState> = Symbol('vob-inline-rename');

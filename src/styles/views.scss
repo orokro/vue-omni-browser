@@ -1,0 +1,468 @@
+/**
+ * views.scss
+ * Styles for the four content view modes:
+ *   ListView  (list + details)
+ *   IconView  (icon grid)
+ *   TreeView  (expand/collapse hierarchy)
+ *   ColumnView (Finder-style columns)
+ *
+ * All selectors are prefixed with .vob- and are scoped to avoid
+ * leaking into the host application.
+ */
+
+// ================================================================
+// Shared helpers
+// ================================================================
+
+// Inline rename input — used in all views
+.vob-inline-rename {
+	flex: 1;
+	min-width: 0;
+	padding: 1px 4px;
+	background: var(--vob-surface-raised);
+	border: 1px solid var(--vob-accent);
+	border-radius: 2px;
+	color: var(--vob-text);
+	font-size: var(--vob-font-size);
+	font-family: var(--vob-font-family);
+	outline: none;
+
+	&:focus {
+		box-shadow: 0 0 0 2px var(--vob-selection-bg);
+	}
+}
+
+// ================================================================
+// ListView (list mode + details mode)
+// ================================================================
+
+.vob-list-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+	font-size: var(--vob-font-size);
+	color: var(--vob-text);
+}
+
+// ---- Details mode header ----
+
+.vob-list-header {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	height: var(--vob-row-height);
+	background: var(--vob-surface);
+	border-bottom: 1px solid var(--vob-border);
+	user-select: none;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
+.vob-list-header__cell {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 0 8px;
+	height: 100%;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--vob-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	cursor: pointer;
+	white-space: nowrap;
+	overflow: hidden;
+
+	&:hover {
+		color: var(--vob-text);
+		background: var(--vob-btn-hover-bg);
+	}
+
+	&--name {
+		flex: 1;
+		min-width: 120px;
+	}
+
+	&--meta {
+		width: 120px;
+		flex-shrink: 0;
+	}
+
+	.vob-sort-icon {
+		font-size: 14px;
+		flex-shrink: 0;
+		color: var(--vob-accent);
+	}
+}
+
+// ---- Scrollable rows container ----
+
+.vob-list-body {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+
+	// Custom scrollbar
+	scrollbar-width: thin;
+	scrollbar-color: var(--vob-scrollbar-thumb) var(--vob-scrollbar-track);
+
+	&::-webkit-scrollbar { width: 8px; }
+	&::-webkit-scrollbar-track { background: var(--vob-scrollbar-track); }
+	&::-webkit-scrollbar-thumb {
+		background: var(--vob-scrollbar-thumb);
+		border-radius: 4px;
+	}
+}
+
+// ---- Item row ----
+
+.vob-list-row {
+	display: flex;
+	align-items: center;
+	height: var(--vob-row-height);
+	cursor: pointer;
+	user-select: none;
+	border-bottom: 1px solid transparent;
+
+	&:nth-child(even) { background: var(--vob-row-odd); }
+	&:hover:not(.vob-list-row--selected) { background: var(--vob-row-hover); }
+
+	&--selected {
+		background: var(--vob-row-selected) !important;
+		outline: 1px solid var(--vob-selection-border);
+		outline-offset: -1px;
+	}
+
+	&--cut {
+		opacity: 0.45;
+	}
+
+	&--renaming {
+		background: var(--vob-row-hover) !important;
+	}
+}
+
+// ---- Row cells ----
+
+.vob-list-cell {
+	display: flex;
+	align-items: center;
+	padding: 0 8px;
+	overflow: hidden;
+	height: 100%;
+
+	&--name {
+		flex: 1;
+		min-width: 0;
+		gap: 6px;
+	}
+
+	&--meta {
+		width: 120px;
+		flex-shrink: 0;
+		color: var(--vob-text-muted);
+		font-size: 11px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+}
+
+.vob-list-icon {
+	font-size: var(--vob-icon-size);
+	color: var(--vob-accent);
+	flex-shrink: 0;
+}
+
+.vob-list-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vob-list-empty {
+	padding: 24px 16px;
+	color: var(--vob-text-muted);
+	font-style: italic;
+	font-size: 12px;
+}
+
+// ================================================================
+// IconView
+// ================================================================
+
+.vob-icon-view {
+	height: 100%;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 8px;
+
+	scrollbar-width: thin;
+	scrollbar-color: var(--vob-scrollbar-thumb) var(--vob-scrollbar-track);
+
+	&::-webkit-scrollbar { width: 8px; }
+	&::-webkit-scrollbar-track { background: var(--vob-scrollbar-track); }
+	&::-webkit-scrollbar-thumb {
+		background: var(--vob-scrollbar-thumb);
+		border-radius: 4px;
+	}
+}
+
+.vob-icon-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	align-content: flex-start;
+}
+
+.vob-icon-cell {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 4px;
+	padding: 8px 6px 6px;
+	border-radius: var(--vob-border-radius);
+	cursor: pointer;
+	user-select: none;
+	overflow: hidden;
+	transition: background 0.1s;
+
+	// Width/height driven by zoom via inline style
+	width: calc(var(--vob-icon-col-width) * var(--vob-zoom, 1));
+	height: calc(var(--vob-icon-col-height) * var(--vob-zoom, 1));
+
+	&:hover:not(.vob-icon-cell--selected) { background: var(--vob-row-hover); }
+
+	&--selected {
+		background: var(--vob-row-selected);
+		outline: 1px solid var(--vob-selection-border);
+		outline-offset: -1px;
+	}
+
+	&--cut { opacity: 0.45; }
+}
+
+.vob-icon-cell__icon {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	min-height: 0;
+
+	.material-icons {
+		font-size: calc(var(--vob-icon-size) * 2 * var(--vob-zoom, 1));
+		color: var(--vob-accent);
+	}
+}
+
+.vob-icon-cell__name {
+	width: 100%;
+	font-size: calc(var(--vob-font-size) * 0.9);
+	color: var(--vob-text);
+	text-align: center;
+	word-break: break-word;
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+
+.vob-icon-cell__rename {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.vob-icon-empty {
+	padding: 24px 16px;
+	color: var(--vob-text-muted);
+	font-style: italic;
+	font-size: 12px;
+}
+
+// ================================================================
+// TreeView
+// ================================================================
+
+.vob-tree-view {
+	height: 100%;
+	overflow-y: auto;
+	overflow-x: auto;
+	font-size: var(--vob-font-size);
+	color: var(--vob-text);
+
+	scrollbar-width: thin;
+	scrollbar-color: var(--vob-scrollbar-thumb) var(--vob-scrollbar-track);
+
+	&::-webkit-scrollbar { width: 8px; }
+	&::-webkit-scrollbar-track { background: var(--vob-scrollbar-track); }
+	&::-webkit-scrollbar-thumb {
+		background: var(--vob-scrollbar-thumb);
+		border-radius: 4px;
+	}
+}
+
+.vob-tree-row {
+	display: flex;
+	align-items: center;
+	height: var(--vob-row-height);
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+
+	&:nth-child(even) { background: var(--vob-row-odd); }
+	&:hover:not(.vob-tree-row--selected) { background: var(--vob-row-hover); }
+
+	&--selected {
+		background: var(--vob-row-selected) !important;
+		outline: 1px solid var(--vob-selection-border);
+		outline-offset: -1px;
+	}
+
+	&--cut { opacity: 0.45; }
+}
+
+.vob-tree-indent {
+	// Width is depth * --vob-indent-width, set via inline style
+	flex-shrink: 0;
+}
+
+.vob-tree-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 100%;
+	flex-shrink: 0;
+	color: var(--vob-text-muted);
+	font-size: 16px;
+
+	&--leaf { cursor: default; }
+}
+
+.vob-tree-icon {
+	font-size: var(--vob-icon-size);
+	color: var(--vob-accent);
+	flex-shrink: 0;
+	margin-right: 6px;
+}
+
+.vob-tree-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vob-tree-empty {
+	padding: 24px 16px;
+	color: var(--vob-text-muted);
+	font-style: italic;
+	font-size: 12px;
+}
+
+// ================================================================
+// ColumnView
+// ================================================================
+
+.vob-column-view {
+	height: 100%;
+	display: flex;
+	flex-direction: row;
+	overflow-x: auto;
+	overflow-y: hidden;
+
+	scrollbar-width: thin;
+	scrollbar-color: var(--vob-scrollbar-thumb) var(--vob-scrollbar-track);
+
+	&::-webkit-scrollbar { height: 8px; }
+	&::-webkit-scrollbar-track { background: var(--vob-scrollbar-track); }
+	&::-webkit-scrollbar-thumb {
+		background: var(--vob-scrollbar-thumb);
+		border-radius: 4px;
+	}
+}
+
+.vob-column {
+	display: flex;
+	flex-direction: column;
+	min-width: var(--vob-col-min-width);
+	border-right: 1px solid var(--vob-border);
+	overflow-y: auto;
+	overflow-x: hidden;
+	flex-shrink: 0;
+
+	scrollbar-width: thin;
+	scrollbar-color: var(--vob-scrollbar-thumb) var(--vob-scrollbar-track);
+
+	&::-webkit-scrollbar { width: 6px; }
+	&::-webkit-scrollbar-track { background: var(--vob-scrollbar-track); }
+	&::-webkit-scrollbar-thumb {
+		background: var(--vob-scrollbar-thumb);
+		border-radius: 4px;
+	}
+
+	&:last-child { border-right: none; }
+}
+
+.vob-column-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 8px;
+	height: var(--vob-row-height);
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+	flex-shrink: 0;
+
+	&:nth-child(even) { background: var(--vob-row-odd); }
+	&:hover:not(.vob-column-row--active):not(.vob-column-row--selected) {
+		background: var(--vob-row-hover);
+	}
+
+	// The "active" item is the one whose children are shown in the next column.
+	&--active {
+		background: var(--vob-accent) !important;
+		color: var(--vob-text-on-accent);
+
+		.vob-column-row__icon,
+		.vob-column-row__arrow { color: var(--vob-text-on-accent); }
+	}
+
+	&--selected:not(.vob-column-row--active) {
+		background: var(--vob-row-selected);
+		outline: 1px solid var(--vob-selection-border);
+		outline-offset: -1px;
+	}
+
+	&--cut { opacity: 0.45; }
+}
+
+.vob-column-row__icon {
+	font-size: var(--vob-icon-size);
+	color: var(--vob-accent);
+	flex-shrink: 0;
+}
+
+.vob-column-row__name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vob-column-row__arrow {
+	font-size: 14px;
+	color: var(--vob-text-muted);
+	flex-shrink: 0;
+}
+
+.vob-column-empty {
+	padding: 12px 8px;
+	color: var(--vob-text-muted);
+	font-style: italic;
+	font-size: 12px;
+}

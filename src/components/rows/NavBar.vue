@@ -27,7 +27,6 @@ import {
 	VOB_NAVIGATION_KEY,
 	VOB_SORT_FILTER_KEY,
 	VOB_CONFIG_KEY,
-	VOB_DATA_SPEC_KEY,
 } from '../../injectionKeys';
 import VobButton from '../shared/VobButton.vue';
 

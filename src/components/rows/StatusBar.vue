@@ -14,7 +14,6 @@ import {
 	VOB_NAVIGATION_KEY,
 	VOB_SELECTION_KEY,
 	VOB_VIEW_MODE_KEY,
-	VOB_CONFIG_KEY,
 } from '../../injectionKeys';
 
 // ----------------------------------------------------------------
@@ -33,7 +32,6 @@ const engine     = inject(VOB_ENGINE_KEY)!;
 const navigation = inject(VOB_NAVIGATION_KEY)!;
 const selection  = inject(VOB_SELECTION_KEY)!;
 const viewMode   = inject(VOB_VIEW_MODE_KEY)!;
-const config     = inject(VOB_CONFIG_KEY)!;
 
 // ----------------------------------------------------------------
 // Context and text

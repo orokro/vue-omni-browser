@@ -17,7 +17,6 @@ import { VOB } from '../../constants';
 import type { VobViewMode } from '../../constants';
 import {
 	VOB_VIEW_MODE_KEY,
-	VOB_CONFIG_KEY,
 	VOB_DATA_SPEC_KEY,
 	VOB_SORT_FILTER_KEY,
 } from '../../injectionKeys';
@@ -36,7 +35,6 @@ const props = defineProps<{
 // ----------------------------------------------------------------
 
 const viewMode   = inject(VOB_VIEW_MODE_KEY)!;
-const config     = inject(VOB_CONFIG_KEY)!;
 const dataSpec   = inject(VOB_DATA_SPEC_KEY)!;
 const sortFilter = inject(VOB_SORT_FILTER_KEY)!;
 
