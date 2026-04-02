@@ -10,7 +10,7 @@
  * cut-item dimming. The active mode is read from the injected view-mode state.
  */
 
-import { computed, nextTick, inject } from 'vue';
+import { computed, inject } from 'vue';
 import type { VobItem, VobMetaKeyDefinition } from '../../types';
 import { VOB } from '../../constants';
 import {
@@ -161,17 +161,6 @@ function handleDblClick(item: VobItem): void {
 // ----------------------------------------------------------------
 
 /**
- * Called when the renaming state changes. When a new item starts renaming,
- * auto-focus and select-all the input on the next tick.
- */
-async function onRenameInputMounted(el: Element | null, id: string): Promise<void> {
-	if (el && inlineRename.renamingId.value === id) {
-		await nextTick();
-		(el as HTMLInputElement).select();
-	}
-}
-
-/**
  * Handle keydown on rename input: Enter commits, Escape cancels.
  */
 function handleRenameKeydown(event: KeyboardEvent): void {
@@ -234,7 +223,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 						v-if="inlineRename.isRenaming(item.id)"
 						v-model="inlineRename.renameValue.value"
 						class="vob-inline-rename"
-						:ref="(el) => onRenameInputMounted(el as Element | null, item.id)"
+						autofocus
 						@blur="inlineRename.commitRename()"
 						@keydown="handleRenameKeydown"
 						@click.stop

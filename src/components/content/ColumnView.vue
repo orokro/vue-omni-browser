@@ -190,13 +190,6 @@ function handleDblClick(item: VobItem, colIndex: number): void {
 // Inline rename
 // ----------------------------------------------------------------
 
-async function onRenameInputMounted(el: Element | null, id: string): Promise<void> {
-	if (el && inlineRename.renamingId.value === id) {
-		await nextTick();
-		(el as HTMLInputElement).select();
-	}
-}
-
 function handleRenameKeydown(event: KeyboardEvent): void {
 	if (event.key === 'Enter') {
 		event.preventDefault();
@@ -235,7 +228,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 					v-if="inlineRename.isRenaming(item.id)"
 					v-model="inlineRename.renameValue.value"
 					class="vob-inline-rename vob-column-row__name"
-					:ref="(el) => onRenameInputMounted(el as Element | null, item.id)"
+					autofocus
 					@blur="inlineRename.commitRename()"
 					@keydown="handleRenameKeydown"
 					@click.stop

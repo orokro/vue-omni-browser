@@ -11,7 +11,7 @@
  * is applied; this view is intended for datasets in the hundreds of items range.
  */
 
-import { computed, ref, nextTick, inject } from 'vue';
+import { computed, ref, inject } from 'vue';
 import type { VobItem } from '../../types';
 import { buildTreeRows, type TreeViewRow } from '../../utils/treeUtils';
 import {
@@ -143,13 +143,6 @@ function buildPathTo(id: string): string[] {
 // Inline rename
 // ----------------------------------------------------------------
 
-async function onRenameInputMounted(el: Element | null, id: string): Promise<void> {
-	if (el && inlineRename.renamingId.value === id) {
-		await nextTick();
-		(el as HTMLInputElement).select();
-	}
-}
-
 function handleRenameKeydown(event: KeyboardEvent): void {
 	if (event.key === 'Enter') {
 		event.preventDefault();
@@ -194,7 +187,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 				v-if="inlineRename.isRenaming(row.item.id)"
 				v-model="inlineRename.renameValue.value"
 				class="vob-inline-rename vob-tree-name"
-				:ref="(el) => onRenameInputMounted(el as Element | null, row.item.id)"
+				autofocus
 				@blur="inlineRename.commitRename()"
 				@keydown="handleRenameKeydown"
 				@click.stop

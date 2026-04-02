@@ -8,7 +8,7 @@
  * scale proportionally via a CSS custom property `--vob-zoom`.
  */
 
-import { computed, nextTick, inject } from 'vue';
+import { computed, inject } from 'vue';
 import type { VobItem } from '../../types';
 import {
 	VOB_ENGINE_KEY,
@@ -84,13 +84,6 @@ function handleDblClick(item: VobItem): void {
 // Inline rename
 // ----------------------------------------------------------------
 
-async function onRenameInputMounted(el: Element | null, id: string): Promise<void> {
-	if (el && inlineRename.renamingId.value === id) {
-		await nextTick();
-		(el as HTMLInputElement).select();
-	}
-}
-
 function handleRenameKeydown(event: KeyboardEvent): void {
 	if (event.key === 'Enter') {
 		event.preventDefault();
@@ -126,7 +119,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 					v-if="inlineRename.isRenaming(item.id)"
 					v-model="inlineRename.renameValue.value"
 					class="vob-inline-rename vob-icon-cell__rename"
-					:ref="(el) => onRenameInputMounted(el as Element | null, item.id)"
+					autofocus
 					@blur="inlineRename.commitRename()"
 					@keydown="handleRenameKeydown"
 					@click.stop
