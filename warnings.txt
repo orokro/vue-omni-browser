@@ -1,0 +1,66 @@
+geem4@Vector-2G ~/win_projects/vue-omni-browser
+$ npm i
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: vite-plugin-inspect@11.3.3
+npm warn Found: vite@8.0.3
+npm warn node_modules/vite
+npm warn   dev vite@"^8.0.3" from the root project
+npm warn   3 more (@vitejs/plugin-vue, vite-plugin-vue-devtools, vite-plugin-vue-inspector)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer vite@"^6.0.0 || ^7.0.0-0" from vite-plugin-inspect@11.3.3
+npm warn node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect
+npm warn   vite-plugin-inspect@"^11.3.3" from vite-plugin-vue-devtools@8.1.1
+npm warn   node_modules/vite-plugin-vue-devtools
+npm warn
+npm warn Conflicting peer dependency: vite@7.3.1
+npm warn node_modules/vite
+npm warn   peer vite@"^6.0.0 || ^7.0.0-0" from vite-plugin-inspect@11.3.3
+npm warn   node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect
+npm warn     vite-plugin-inspect@"^11.3.3" from vite-plugin-vue-devtools@8.1.1
+npm warn     node_modules/vite-plugin-vue-devtools
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: vite-dev-rpc@1.1.0
+npm warn Found: vite@8.0.3
+npm warn node_modules/vite
+npm warn   dev vite@"^8.0.3" from the root project
+npm warn   3 more (@vitejs/plugin-vue, vite-plugin-vue-devtools, vite-plugin-vue-inspector)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer vite@"^2.9.0 || ^3.0.0-0 || ^4.0.0-0 || ^5.0.0-0 || ^6.0.1 || ^7.0.0-0" from vite-dev-rpc@1.1.0
+npm warn node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect/node_modules/vite-dev-rpc
+npm warn   vite-dev-rpc@"^1.1.0" from vite-plugin-inspect@11.3.3
+npm warn   node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect
+npm warn
+npm warn Conflicting peer dependency: vite@7.3.1
+npm warn node_modules/vite
+npm warn   peer vite@"^2.9.0 || ^3.0.0-0 || ^4.0.0-0 || ^5.0.0-0 || ^6.0.1 || ^7.0.0-0" from vite-dev-rpc@1.1.0
+npm warn   node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect/node_modules/vite-dev-rpc
+npm warn     vite-dev-rpc@"^1.1.0" from vite-plugin-inspect@11.3.3
+npm warn     node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: vite-hot-client@2.1.0
+npm warn Found: vite@8.0.3
+npm warn node_modules/vite
+npm warn   dev vite@"^8.0.3" from the root project
+npm warn   3 more (@vitejs/plugin-vue, vite-plugin-vue-devtools, vite-plugin-vue-inspector)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer vite@"^2.6.0 || ^3.0.0 || ^4.0.0 || ^5.0.0-0 || ^6.0.0-0 || ^7.0.0-0" from vite-hot-client@2.1.0
+npm warn node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect/node_modules/vite-dev-rpc/node_modules/vite-hot-client
+npm warn   vite-hot-client@"^2.1.0" from vite-dev-rpc@1.1.0
+npm warn   node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect/node_modules/vite-dev-rpc
+npm warn
+npm warn Conflicting peer dependency: vite@7.3.1
+npm warn node_modules/vite
+npm warn   peer vite@"^2.6.0 || ^3.0.0 || ^4.0.0 || ^5.0.0-0 || ^6.0.0-0 || ^7.0.0-0" from vite-hot-client@2.1.0
+npm warn   node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect/node_modules/vite-dev-rpc/node_modules/vite-hot-client
+npm warn     vite-hot-client@"^2.1.0" from vite-dev-rpc@1.1.0
+npm warn     node_modules/vite-plugin-vue-devtools/node_modules/vite-plugin-inspect/node_modules/vite-dev-rpc
+
+added 29 packages, and audited 147 packages in 4s
+
+35 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
