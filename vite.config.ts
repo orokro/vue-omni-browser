@@ -4,8 +4,7 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueDevTools from 'vite-plugin-vue-devtools';
 
-// Vite resolves .js before .ts, so config lives here.
-// vite.config.ts is kept as a reference only.
+// https://vite.dev/config/
 export default defineConfig({
 	plugins: [
 		vue(),
