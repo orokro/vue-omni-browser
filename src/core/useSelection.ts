@@ -21,7 +21,6 @@
 import { ref, computed, type Ref } from 'vue';
 import type { VobItem, VobConfig } from '../types';
 import type { VobEngine } from './useVobEngine';
-import { type InjectionKey } from 'vue';
 
 // ----------------------------------------------------------------
 // Types
@@ -62,8 +61,6 @@ export interface VobSelection {
 	 */
 	setSelection: (ids: string[]) => void;
 }
-
-export const VOB_SELECTION_KEY: InjectionKey<VobSelection> = Symbol('vob-selection');
 
 // ----------------------------------------------------------------
 // Composable

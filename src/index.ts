@@ -4,14 +4,6 @@
  *
  * Usage:
  *   import { VOB, VueOmniBrowser } from 'vue-omni-browser';
- *
- * The VOB namespace gives access to all built-in constants (row types, view modes,
- * actions, buttons, data modes, and the SEPARATOR sentinel).
- *
- * VueOmniBrowser is the root component — mount it anywhere in your Vue 3 app.
- *
- * NOTE: VueOmniBrowser.vue is a stub at this stage (Phase 1).
- * Component implementation begins in Phase 2.
  */
 
 // ----------------------------------------------------------------
@@ -69,15 +61,21 @@ export type {
 } from './types';
 
 // ----------------------------------------------------------------
-// Main component (stub — full implementation in Phase 2)
+// Main component
 // ----------------------------------------------------------------
-// export { default as VueOmniBrowser } from './components/VueOmniBrowser.vue';
+export { default as VueOmniBrowser } from './components/VueOmniBrowser.vue';
 
 // ----------------------------------------------------------------
-// Injection keys (useful for library consumers who build their own
-// child components and want to inject the engine/navigation/etc.)
+// Injection keys — for consumers building custom child components
+// All keys are now sourced from the single injectionKeys.ts module.
 // ----------------------------------------------------------------
-export { VOB_ENGINE_KEY } from './core/useVobEngine';
-export { VOB_NAVIGATION_KEY } from './core/useNavigation';
-export { VOB_SELECTION_KEY } from './core/useSelection';
-export { VOB_SORT_FILTER_KEY } from './core/useSortFilter';
+export {
+	VOB_ENGINE_KEY,
+	VOB_NAVIGATION_KEY,
+	VOB_SELECTION_KEY,
+	VOB_SORT_FILTER_KEY,
+	VOB_VIEW_MODE_KEY,
+	VOB_CLIPBOARD_KEY,
+	VOB_CONFIG_KEY,
+	VOB_DATA_SPEC_KEY,
+} from './injectionKeys';

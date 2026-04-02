@@ -20,7 +20,6 @@ import { ref, computed, watch, type Ref } from 'vue';
 import type { VobEngine } from './useVobEngine';
 import type { VobConfig } from '../types';
 import { pathIdsToString, pathStringToIds } from '../utils/pathUtils';
-import { type InjectionKey } from 'vue';
 
 // ----------------------------------------------------------------
 // Types
@@ -87,8 +86,6 @@ export interface VobNavigation {
 	 */
 	onRegistryChanged: () => void;
 }
-
-export const VOB_NAVIGATION_KEY: InjectionKey<VobNavigation> = Symbol('vob-navigation');
 
 // ----------------------------------------------------------------
 // Composable

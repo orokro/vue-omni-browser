@@ -83,9 +83,6 @@ export interface VobEngine {
 // Injection key (used with provide/inject in Vue)
 // ----------------------------------------------------------------
 
-import { type InjectionKey } from 'vue';
-export const VOB_ENGINE_KEY: InjectionKey<VobEngine> = Symbol('vob-engine');
-
 // ----------------------------------------------------------------
 // Composable
 // ----------------------------------------------------------------
@@ -219,6 +216,7 @@ export function useVobEngine(
 		const newMap = new Map(registry.value);
 		newMap.set(id, newItem);
 		registry.value = newMap;
+		registryVersion.value++;
 
 		return id;
 	}
@@ -248,6 +246,7 @@ export function useVobEngine(
 		const newMap = new Map(registry.value);
 		for (const id of toRemove) newMap.delete(id);
 		registry.value = newMap;
+		registryVersion.value++;
 
 		return [...toRemove];
 	}

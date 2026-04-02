@@ -18,7 +18,6 @@
 
 import { ref, computed, type Ref } from 'vue';
 import type { VobItem, VobDataSpec } from '../types';
-import { type InjectionKey } from 'vue';
 
 // ----------------------------------------------------------------
 // Types
@@ -69,8 +68,6 @@ export interface VobSortFilter {
 	/** True when any filter (type or search) is currently active. */
 	hasActiveFilter: Readonly<Ref<boolean>>;
 }
-
-export const VOB_SORT_FILTER_KEY: InjectionKey<VobSortFilter> = Symbol('vob-sort-filter');
 
 // ----------------------------------------------------------------
 // Composable

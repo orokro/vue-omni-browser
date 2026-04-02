@@ -1,0 +1,131 @@
+/**
+ * main.scss
+ * Core layout for VueOmniBrowser.
+ * Only structural rules live here — colours and spacing come from variables.scss.
+ *
+ * All selectors are scoped under .vob-container to prevent leaking into the
+ * host application. Component-level <style scoped> handles component-specific rules.
+ */
+
+@use './variables';
+
+// ----------------------------------------------------------------
+// Root container
+// ----------------------------------------------------------------
+
+.vob-container {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	font-family: var(--vob-font-family);
+	font-size: var(--vob-font-size);
+	color: var(--vob-text);
+	background: var(--vob-bg);
+	box-sizing: border-box;
+
+	*,
+	*::before,
+	*::after {
+		box-sizing: inherit;
+	}
+}
+
+// ----------------------------------------------------------------
+// Bar rows (nav-bar, buttons-bar, status-bar, custom-bar)
+// All bars are fixed-height flex rows.
+// ----------------------------------------------------------------
+
+.vob-bar {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex-shrink: 0;
+	height: var(--vob-bar-height);
+	background: var(--vob-surface);
+	border-bottom: 1px solid var(--vob-border);
+	padding: 0 4px;
+	gap: 2px;
+	overflow: hidden;
+	user-select: none;
+
+	// Last bar directly above content removes its bottom border.
+	// (This is approximated — the actual rule is handled by :last-of-type
+	//  checks in the component if needed.)
+}
+
+.vob-bar--bottom {
+	border-bottom: none;
+	border-top: 1px solid var(--vob-border);
+}
+
+// ----------------------------------------------------------------
+// Content area — fills all remaining vertical space
+// ----------------------------------------------------------------
+
+.vob-content-area {
+	flex: 1 1 0;
+	min-height: 0;
+	position: relative;
+	overflow: hidden;
+	background: var(--vob-bg);
+}
+
+// ----------------------------------------------------------------
+// Loading overlay
+// ----------------------------------------------------------------
+
+.vob-loading-overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.3);
+	z-index: 100;
+	pointer-events: all; // blocks interaction during load
+}
+
+.vob-spinner {
+	width: 32px;
+	height: 32px;
+	border: 3px solid var(--vob-border);
+	border-top-color: var(--vob-accent);
+	border-radius: 50%;
+	animation: vob-spin 0.7s linear infinite;
+}
+
+@keyframes vob-spin {
+	to { transform: rotate(360deg); }
+}
+
+// ----------------------------------------------------------------
+// Scrollbars (webkit — graceful degradation on other engines)
+// ----------------------------------------------------------------
+
+.vob-container ::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+.vob-container ::-webkit-scrollbar-track {
+	background: var(--vob-scrollbar-track);
+}
+
+.vob-container ::-webkit-scrollbar-thumb {
+	background: var(--vob-scrollbar-thumb);
+	border-radius: 4px;
+}
+
+// ----------------------------------------------------------------
+// Material Icons font (only loaded when enableMaterialIcons: true
+// — the <link> tag is injected by VueOmniBrowser.vue)
+// ----------------------------------------------------------------
+
+.vob-container .material-icons {
+	font-size: var(--vob-icon-size);
+	line-height: 1;
+	vertical-align: middle;
+}

@@ -1,0 +1,92 @@
+/**
+ * variables.scss
+ * Defines all CSS custom properties used by VueOmniBrowser.
+ * The root .vob-container sets its own local values so the library
+ * never pollutes the global :root — multiple instances on the same
+ * page each get their own theme scope.
+ *
+ * User overrides come from the :theme prop, which sets these same
+ * variables inline on .vob-container via computed style bindings
+ * in VueOmniBrowser.vue.
+ */
+
+// ----------------------------------------------------------------
+// Light theme (default)
+// ----------------------------------------------------------------
+
+.vob-theme-light {
+	--vob-bg:              #ffffff;
+	--vob-bg-alt:          #f5f5f5;      // Alternating row colour
+	--vob-surface:         #fafafa;      // Rows / bars background
+	--vob-surface-raised:  #ffffff;      // Elevated surfaces (dropdowns, modals)
+	--vob-border:          #e0e0e0;
+
+	--vob-text:            #1a1a1a;
+	--vob-text-muted:      #777777;      // Metadata, virtual root, placeholders
+	--vob-text-on-accent:  #ffffff;
+
+	--vob-accent:          #1976d2;
+	--vob-accent-hover:    #1565c0;
+	--vob-selection-bg:    rgba(25, 118, 210, 0.15);
+	--vob-selection-border:rgba(25, 118, 210, 0.5);
+
+	--vob-btn-hover-bg:    rgba(0, 0, 0, 0.06);
+	--vob-btn-active-bg:   rgba(0, 0, 0, 0.1);
+
+	--vob-scrollbar-track: #f1f1f1;
+	--vob-scrollbar-thumb: #c1c1c1;
+
+	--vob-row-even:        #ffffff;
+	--vob-row-odd:         #f8f8f8;
+	--vob-row-hover:       #f0f4ff;
+	--vob-row-selected:    rgba(25, 118, 210, 0.12);
+}
+
+// ----------------------------------------------------------------
+// Dark theme
+// ----------------------------------------------------------------
+
+.vob-theme-dark {
+	--vob-bg:              #1e1e1e;
+	--vob-bg-alt:          #252526;
+	--vob-surface:         #2d2d2d;
+	--vob-surface-raised:  #3c3c3c;
+	--vob-border:          rgba(255, 255, 255, 0.1);
+
+	--vob-text:            #cccccc;
+	--vob-text-muted:      #888888;
+	--vob-text-on-accent:  #ffffff;
+
+	--vob-accent:          #4fc3f7;
+	--vob-accent-hover:    #81d4fa;
+	--vob-selection-bg:    rgba(79, 195, 247, 0.15);
+	--vob-selection-border:rgba(79, 195, 247, 0.5);
+
+	--vob-btn-hover-bg:    rgba(255, 255, 255, 0.08);
+	--vob-btn-active-bg:   rgba(255, 255, 255, 0.14);
+
+	--vob-scrollbar-track: #1e1e1e;
+	--vob-scrollbar-thumb: #555555;
+
+	--vob-row-even:        #1e1e1e;
+	--vob-row-odd:         #252526;
+	--vob-row-hover:       #2a2d2e;
+	--vob-row-selected:    rgba(79, 195, 247, 0.12);
+}
+
+// ----------------------------------------------------------------
+// Dimension & typography tokens (shared across both themes)
+// ----------------------------------------------------------------
+
+.vob-container {
+	--vob-font-family:     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--vob-font-size:       13px;
+	--vob-icon-size:       18px;
+	--vob-row-height:      28px;
+	--vob-bar-height:      36px;
+	--vob-border-radius:   4px;
+	--vob-indent-width:    20px;   // Per-level indent in tree view
+	--vob-icon-col-width:  90px;   // Width of each icon in icons view (before zoom)
+	--vob-icon-col-height: 80px;   // Height of each icon cell (before zoom)
+	--vob-col-min-width:   220px;  // Minimum width of a column in column view
+}
