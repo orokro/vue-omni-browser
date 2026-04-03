@@ -10,7 +10,7 @@
  * even though the menu teleports to <body>.
  */
 
-import { onMounted, onUnmounted, inject } from 'vue';
+import { ref, onMounted, onUnmounted, inject } from 'vue';
 import { VOB_CONTEXT_MENU_KEY, VOB_THEME_KEY } from '../injectionKeys';
 
 // ----------------------------------------------------------------
@@ -20,12 +20,26 @@ import { VOB_CONTEXT_MENU_KEY, VOB_THEME_KEY } from '../injectionKeys';
 const ctx   = inject(VOB_CONTEXT_MENU_KEY)!;
 const theme = inject(VOB_THEME_KEY)!;
 
+/** Ref to the root menu element, used to detect inside-clicks. */
+const menuEl = ref<HTMLElement | null>(null);
+
 // ----------------------------------------------------------------
 // Global close handlers
 // ----------------------------------------------------------------
 
-function handleGlobalClick(): void {
-	if (ctx.isOpen.value) ctx.close();
+/**
+ * Close the menu on any mousedown outside the menu itself.
+ *
+ * NOTE: this listener runs with capture=true (fires before any element
+ * handler), so we CANNOT rely on @mousedown.stop inside the menu to
+ * prevent it. Instead, we explicitly check whether the click target is
+ * inside the menu element and skip closing in that case.
+ */
+function handleGlobalMousedown(event: MouseEvent): void {
+	if (!ctx.isOpen.value) return;
+	const target = event.target as Node | null;
+	if (menuEl.value && target && menuEl.value.contains(target)) return;
+	ctx.close();
 }
 
 function handleGlobalKeydown(event: KeyboardEvent): void {
@@ -40,15 +54,15 @@ function handleGlobalScroll(): void {
 }
 
 onMounted(() => {
-	document.addEventListener('mousedown', handleGlobalClick, true);
-	document.addEventListener('keydown',   handleGlobalKeydown, true);
-	window.addEventListener('scroll',      handleGlobalScroll,  true);
+	document.addEventListener('mousedown', handleGlobalMousedown, true);
+	document.addEventListener('keydown',   handleGlobalKeydown,   true);
+	window.addEventListener('scroll',      handleGlobalScroll,    true);
 });
 
 onUnmounted(() => {
-	document.removeEventListener('mousedown', handleGlobalClick, true);
-	document.removeEventListener('keydown',   handleGlobalKeydown, true);
-	window.removeEventListener('scroll',      handleGlobalScroll, true);
+	document.removeEventListener('mousedown', handleGlobalMousedown, true);
+	document.removeEventListener('keydown',   handleGlobalKeydown,   true);
+	window.removeEventListener('scroll',      handleGlobalScroll,    true);
 });
 </script>
 
@@ -57,12 +71,11 @@ onUnmounted(() => {
 		<Transition name="vob-ctx-fade">
 			<div
 				v-if="ctx.isOpen.value"
+				ref="menuEl"
 				class="vob-ctx-menu"
 				:class="theme.themeClass.value"
 				:style="[theme.overlayStyle.value, { top: ctx.position.value.y + 'px', left: ctx.position.value.x + 'px' }]"
 				role="menu"
-				@click.stop
-				@mousedown.stop
 			>
 				<template v-for="entry in ctx.entries.value" :key="entry.key">
 					<!-- Separator -->
