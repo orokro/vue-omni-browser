@@ -61,10 +61,15 @@ export interface VobDragDropState {
 	draggableOpts: (item: VobItem) => object;
 
 	/**
-	 * Returns the v-pnp-dropzone binding object for the given folder.
-	 * Pass null for the background dropzone of the current folder view.
+	 * Returns the v-pnp-dropzone binding object for the given target.
+	 *
+	 * Overloads:
+	 *  - Pass a `string | null` to target a specific folder by ID (or root).
+	 *    Use this for background / whole-area drop zones.
+	 *  - Pass a `VobItem` to target an item row. Returns `{}` (no-op) for
+	 *    leaf items so only container-type rows become drop targets.
 	 */
-	dropzoneOpts: (folderId: string | null) => object;
+	dropzoneOpts: (folderIdOrItem: string | null | VobItem) => object;
 
 	/**
 	 * True while any PNP drag is in progress (mirrors manager.isDragging).
@@ -217,14 +222,25 @@ export function useDragDrop(
 	/**
 	 * Returns the v-pnp-dropzone binding for a folder row or background zone.
 	 *
-	 * @param folderId - The folder this zone represents, or null for root.
+	 * @param folderIdOrItem - A folder ID string, null (root), or a VobItem.
+	 *   When a VobItem is passed, returns {} for leaf types so only container
+	 *   rows become active drop targets.
 	 */
-	function dropzoneOpts(folderId: string | null): object {
+	function dropzoneOpts(folderIdOrItem: string | null | VobItem): object {
 		if (config.value.readOnly) {
 			return {};
 		}
 
-		const targetId = folderId ?? null;
+		let targetId: string | null;
+
+		if (folderIdOrItem !== null && typeof folderIdOrItem === 'object') {
+			// VobItem — only containers are valid drop targets.
+			const def = engine.getTypeDefinition(folderIdOrItem.type);
+			if (!def?.hasChildren) return {};
+			targetId = folderIdOrItem.id;
+		} else {
+			targetId = folderIdOrItem;
+		}
 
 		return {
 			// Accept any VOB item OR an external drop.

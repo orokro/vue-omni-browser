@@ -136,6 +136,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 				@dblclick="handleDblClick(item)"
 				@contextmenu.prevent="handleContextMenu(item, $event)"
 				v-pnp-draggable="dragDrop.draggableOpts(item)"
+				v-pnp-dropzone="dragDrop.dropzoneOpts(item)"
 			>
 				<!-- Icon -->
 				<div class="vob-icon-cell__icon">

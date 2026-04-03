@@ -180,6 +180,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 				'vob-tree-row--dragging': dragDrop.isDraggingItem(row.item.id),
 			}"
 			v-pnp-draggable="dragDrop.draggableOpts(row.item)"
+			v-pnp-dropzone="dragDrop.dropzoneOpts(row.item)"
 			@click="handleClick(row, $event)"
 			@dblclick="handleDblClick(row)"
 			@contextmenu.prevent="handleContextMenu(row, $event)"

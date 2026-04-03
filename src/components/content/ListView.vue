@@ -241,6 +241,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 				@dblclick="handleDblClick(item)"
 				@contextmenu.prevent="handleContextMenu(item, $event)"
 				v-pnp-draggable="dragDrop.draggableOpts(item)"
+				v-pnp-dropzone="dragDrop.dropzoneOpts(item)"
 			>
 				<!-- Name cell (always present) -->
 				<div class="vob-list-cell vob-list-cell--name">
