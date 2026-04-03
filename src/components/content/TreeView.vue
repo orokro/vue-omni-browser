@@ -15,6 +15,7 @@ import { computed, ref, inject } from 'vue';
 import type { VobItem } from '../../types';
 import { buildTreeRows, type TreeViewRow } from '../../utils/treeUtils';
 import { vFocusSelect } from '@/directives/focusSelect';
+import { vPnpDraggable, vPnpDropzone } from 'vue-pick-n-plop';
 import {
 	VOB_ENGINE_KEY,
 	VOB_NAVIGATION_KEY,
@@ -23,6 +24,8 @@ import {
 	VOB_DATA_SPEC_KEY,
 	VOB_INLINE_RENAME_KEY,
 	VOB_CONTEXT_MENU_KEY,
+	VOB_OPEN_ITEM_KEY,
+	VOB_DRAG_DROP_KEY,
 } from '../../injectionKeys';
 
 // ----------------------------------------------------------------
@@ -36,6 +39,8 @@ const clipboard    = inject(VOB_CLIPBOARD_KEY)!;
 const dataSpec     = inject(VOB_DATA_SPEC_KEY)!;
 const inlineRename = inject(VOB_INLINE_RENAME_KEY)!;
 const contextMenu  = inject(VOB_CONTEXT_MENU_KEY)!;
+const openItem     = inject(VOB_OPEN_ITEM_KEY)!;
+const dragDrop     = inject(VOB_DRAG_DROP_KEY)!;
 
 // ----------------------------------------------------------------
 // Expand / collapse state
@@ -120,26 +125,7 @@ function handleClick(row: TreeViewRow, event: MouseEvent): void {
  */
 function handleDblClick(row: TreeViewRow): void {
 	if (inlineRename.isRenaming(row.item.id)) return;
-	if (row.hasChildren) {
-		// Toggle expand.
-		handleToggle(row.item, new MouseEvent('click'));
-		// Navigate to the folder.
-		navigation.navigateTo(buildPathTo(row.item.id));
-		selection.clearSelection();
-	}
-}
-
-/**
- * Builds the full path IDs array from the root to the given item ID.
- */
-function buildPathTo(id: string): string[] {
-	const path: string[] = [];
-	let current: VobItem | undefined = engine.getItem(id);
-	while (current) {
-		path.unshift(current.id);
-		current = current.parentId ? engine.getItem(current.parentId) : undefined;
-	}
-	return path;
+	openItem.openItem(row.item);
 }
 
 // ----------------------------------------------------------------
@@ -179,7 +165,11 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-	<div class="vob-tree-view" @contextmenu.self.prevent="handleBgContextMenu($event)">
+	<div
+		class="vob-tree-view"
+		@contextmenu.self.prevent="handleBgContextMenu($event)"
+		v-pnp-dropzone="dragDrop.dropzoneOpts(navigation.currentFolderId.value)"
+	>
 		<div
 			v-for="row in treeRows"
 			:key="row.item.id"
@@ -187,7 +177,9 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 			:class="{
 				'vob-tree-row--selected': selection.isSelected(row.item.id),
 				'vob-tree-row--cut':      clipboard.isCut(row.item.id),
+				'vob-tree-row--dragging': dragDrop.isDraggingItem(row.item.id),
 			}"
+			v-pnp-draggable="dragDrop.draggableOpts(row.item)"
 			@click="handleClick(row, $event)"
 			@dblclick="handleDblClick(row)"
 			@contextmenu.prevent="handleContextMenu(row, $event)"

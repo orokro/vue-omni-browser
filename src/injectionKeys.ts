@@ -22,6 +22,8 @@ import type { VobClipboardState } from './core/useClipboard';
 import type { VobInlineRenameState } from './core/useInlineRename';
 import type { VobModalState } from './core/useVobModal';
 import type { VobContextMenuState } from './core/useContextMenu';
+import type { VobOpenItemState } from './core/useOpenItem';
+import type { VobDragDropState } from './core/useDragDrop';
 
 export const VOB_ENGINE_KEY: InjectionKey<VobEngine> = Symbol('vob-engine');
 export const VOB_NAVIGATION_KEY: InjectionKey<VobNavigation> = Symbol('vob-navigation');
@@ -44,6 +46,16 @@ export const VOB_MODAL_KEY: InjectionKey<VobModalState> = Symbol('vob-modal');
 
 /** The context menu state, provided by VueOmniBrowser.vue. */
 export const VOB_CONTEXT_MENU_KEY: InjectionKey<VobContextMenuState> = Symbol('vob-context-menu');
+
+/** The shared open-item handler (double-click / Enter / context menu Open). */
+export const VOB_OPEN_ITEM_KEY: InjectionKey<VobOpenItemState> = Symbol('vob-open-item');
+
+/**
+ * Drag-and-drop state (vue-pick-n-plop integration).
+ * Provides draggableOpts / dropzoneOpts / isDragging / isDraggingItem.
+ * Available even when PNP is not installed — all methods return no-op values.
+ */
+export const VOB_DRAG_DROP_KEY: InjectionKey<VobDragDropState> = Symbol('vob-drag-drop');
 
 /**
  * Theme helpers for Teleport-based overlays.

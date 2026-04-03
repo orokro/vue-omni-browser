@@ -26,6 +26,7 @@ import type { VobNavigation } from './useNavigation';
 import type { VobSelection } from './useSelection';
 import type { VobClipboardState } from './useClipboard';
 import type { VobModalState } from './useVobModal';
+import type { VobOpenItemState } from './useOpenItem';
 import { VOB } from '../constants';
 
 // ----------------------------------------------------------------
@@ -107,6 +108,7 @@ export function useContextMenu(
 	config: Ref<VobConfig>,
 	_dataSpec: Ref<VobDataSpec>,
 	modal: VobModalState,
+	openItem: VobOpenItemState['openItem'],
 ): VobContextMenuState {
 	const isOpen   = ref(false);
 	const position = ref<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -171,19 +173,17 @@ export function useContextMenu(
 		// The first selected item (used for OPEN type check)
 		const firstId   = [...selection.selectedIds.value][0] ?? null;
 		const firstItem = firstId ? engine.getItem(firstId) : null;
-		const firstType = firstItem ? engine.getTypeDefinition(firstItem.type) : null;
 
 		switch (actionId) {
 			case VOB.ACTIONS.OPEN:
 				return {
 					kind: 'item', key: `open-${index}`,
 					label: 'Open', icon: 'folder_open',
-					disabled: !singleSel || !firstType?.hasChildren,
+					disabled: !singleSel,
 					action: () => {
-						if (!firstItem || !firstType?.hasChildren) return;
-						navigation.navigateTo([...navigation.currentPathIds.value, firstItem.id]);
-						selection.clearSelection();
+						if (!firstItem) return;
 						close();
+						openItem(firstItem);
 					},
 				};
 

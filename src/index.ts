@@ -58,6 +58,9 @@ export type {
 	VobClipboard,
 	// Public API
 	VobApi,
+	// Drag and drop
+	VobDragContext,
+	VobExternalDropContext,
 } from './types';
 
 // ----------------------------------------------------------------
@@ -82,6 +85,8 @@ export {
 	VOB_MODAL_KEY,
 	VOB_CONTEXT_MENU_KEY,
 	VOB_THEME_KEY,
+	VOB_OPEN_ITEM_KEY,
+	VOB_DRAG_DROP_KEY,
 } from './injectionKeys';
 
 // ----------------------------------------------------------------
@@ -93,3 +98,5 @@ export type { VobSelection } from './core/useSelection';
 export type { VobClipboardState } from './core/useClipboard';
 export type { VobModalState } from './core/useVobModal';
 export type { VobContextMenuState, ResolvedContextEntry } from './core/useContextMenu';
+export type { VobOpenItemState } from './core/useOpenItem';
+export type { VobDragDropState } from './core/useDragDrop';

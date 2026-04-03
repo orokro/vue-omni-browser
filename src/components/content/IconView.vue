@@ -11,6 +11,7 @@
 import { computed, inject } from 'vue';
 import type { VobItem } from '../../types';
 import { vFocusSelect } from '@/directives/focusSelect';
+import { vPnpDraggable, vPnpDropzone } from 'vue-pick-n-plop';
 import {
 	VOB_ENGINE_KEY,
 	VOB_NAVIGATION_KEY,
@@ -21,6 +22,8 @@ import {
 	VOB_DATA_SPEC_KEY,
 	VOB_INLINE_RENAME_KEY,
 	VOB_CONTEXT_MENU_KEY,
+	VOB_OPEN_ITEM_KEY,
+	VOB_DRAG_DROP_KEY,
 } from '../../injectionKeys';
 
 // ----------------------------------------------------------------
@@ -36,6 +39,8 @@ const clipboard    = inject(VOB_CLIPBOARD_KEY)!;
 const dataSpec     = inject(VOB_DATA_SPEC_KEY)!;
 const inlineRename = inject(VOB_INLINE_RENAME_KEY)!;
 const contextMenu  = inject(VOB_CONTEXT_MENU_KEY)!;
+const openItem     = inject(VOB_OPEN_ITEM_KEY)!;
+const dragDrop     = inject(VOB_DRAG_DROP_KEY)!;
 
 // ----------------------------------------------------------------
 // Current items & grid
@@ -76,11 +81,7 @@ function handleClick(item: VobItem, event: MouseEvent): void {
 
 function handleDblClick(item: VobItem): void {
 	if (inlineRename.isRenaming(item.id)) return;
-	const def = engine.getTypeDefinition(item.type);
-	if (def?.hasChildren) {
-		navigation.navigateTo([...navigation.currentPathIds.value, item.id]);
-		selection.clearSelection();
-	}
+	openItem.openItem(item);
 }
 
 // ----------------------------------------------------------------
@@ -119,7 +120,9 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 
 <template>
 	<div class="vob-icon-view" :style="zoomStyle" @contextmenu.self.prevent="handleBgContextMenu($event)">
-		<div class="vob-icon-grid" @contextmenu.self.prevent="handleBgContextMenu($event)">
+		<div class="vob-icon-grid"
+			@contextmenu.self.prevent="handleBgContextMenu($event)"
+			v-pnp-dropzone="dragDrop.dropzoneOpts(navigation.currentFolderId.value)">
 			<div
 				v-for="item in currentItems"
 				:key="item.id"
@@ -127,10 +130,12 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 				:class="{
 					'vob-icon-cell--selected': selection.isSelected(item.id),
 					'vob-icon-cell--cut':      clipboard.isCut(item.id),
+					'vob-icon-cell--dragging': dragDrop.isDraggingItem(item.id),
 				}"
 				@click="handleClick(item, $event)"
 				@dblclick="handleDblClick(item)"
 				@contextmenu.prevent="handleContextMenu(item, $event)"
+				v-pnp-draggable="dragDrop.draggableOpts(item)"
 			>
 				<!-- Icon -->
 				<div class="vob-icon-cell__icon">

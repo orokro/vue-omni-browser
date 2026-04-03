@@ -62,6 +62,72 @@ export const VOB = {
 	 * @example [VOB.BUTTONS.COPY, VOB.SEPARATOR, VOB.BUTTONS.DELETE]
 	 */
 	SEPARATOR: { type: 'separator' as const },
+
+	/**
+	 * Drag-and-drop integration constants (requires vue-pick-n-plop peer dependency).
+	 *
+	 * KEYS are the pipe-compatible PNP key strings that VueOmniBrowser uses on its
+	 * draggables and dropzones.  They are intentionally semantic rather than
+	 * filesystem-specific so they compose naturally with the host application's
+	 * own PNP usage.
+	 *
+	 * Container aliases  — "things you can put other things inside"
+	 * Leaf aliases        — "individual items you move around"
+	 *
+	 * Usage examples:
+	 *   // Accept any VOB item dropped onto a custom canvas component:
+	 *   v-pnp-dropzone="{ keys: VOB.DRAG.KEYS.ITEM }"
+	 *
+	 *   // Only accept image files from the browser:
+	 *   v-pnp-dropzone="{ keys: VOB.DRAG.KEYS.ASSET }"
+	 *
+	 *   // Drop something from outside into the browser:
+	 *   v-pnp-draggable="{ keys: VOB.DRAG.KEYS.EXTERNAL, ctx: myData }"
+	 */
+	DRAG: {
+		KEYS: {
+			// ── Container aliases (anything with hasChildren: true) ──────────────
+			/** Filesystem folder */
+			FOLDER:     'vob:folder',
+			/** Generic group or collection */
+			GROUP:      'vob:folder',
+			/** Media/playlist collection */
+			COLLECTION: 'vob:folder',
+			/** Product/kanban category */
+			CATEGORY:   'vob:folder',
+			/** Storage bucket */
+			BUCKET:     'vob:folder',
+
+			// ── Leaf aliases (items without children) ─────────────────────────
+			/** Filesystem file */
+			FILE:   'vob:item',
+			/** Generic catch-all leaf */
+			ITEM:   'vob:item',
+			/** Design/media asset (image, video, font, …) */
+			ASSET:  'vob:item',
+			/** Kanban / CRM card */
+			CARD:   'vob:item',
+			/** Graph or tree node */
+			NODE:   'vob:item',
+			/** Database / log entry */
+			ENTRY:  'vob:item',
+
+			// ── Special ────────────────────────────────────────────────────────
+			/**
+			 * Combined key used on draggables so external drop zones can accept
+			 * either containers or leaves with a single key match.
+			 * Value: 'vob:item|vob:folder'
+			 */
+			ANY: 'vob:item|vob:folder',
+
+			/**
+			 * Key for things dragged INTO the browser from an external source.
+			 * Add this key to your external draggable and provide a VobExternalDropContext
+			 * as ctx so the browser can construct a new item from the drop.
+			 */
+			EXTERNAL: 'vob:external',
+		},
+	},
 } as const;
 
 // ----------------------------------------------------------------

@@ -330,6 +330,24 @@ export interface VobConfig {
 	rows?: VobRowDefinition[];
 	/** Override the built-in modal dialogs with custom implementations. */
 	modals?: VobModals;
+
+	/**
+	 * Called when the user "opens" an item — by double-clicking it, pressing Enter
+	 * with it selected, or choosing Open from the context menu.
+	 *
+	 * For container types (`hasChildren: true`) the browser navigates into the item
+	 * first, then calls this callback (if provided). For leaf items the browser does
+	 * nothing itself — the callback is the sole handler.
+	 *
+	 * Typical uses:
+	 * - Preview a file in a side panel.
+	 * - Follow a shortcut: read `item.meta.targetPath` and call `api.navigateTo(...)`.
+	 * - Open an item in an external editor.
+	 *
+	 * @param item - The item that was opened.
+	 * @param api  - The public VueOmniBrowser API, giving access to navigation etc.
+	 */
+	onOpen?: (item: VobItem, api: VobApi) => void;
 }
 
 // ================================================================
@@ -436,4 +454,43 @@ export interface VobApi {
 	createItem: (data: Omit<VobItemInput, 'id'>, parentId?: string | null) => void;
 	/** Removes items by ID and triggers UI cleanup (path snapping, deselection). */
 	deleteItems: (ids: string[]) => void;
+}
+
+// ================================================================
+// Drag and Drop (vue-pick-n-plop integration)
+// ================================================================
+
+/**
+ * The data payload attached to every item dragged OUT of a VueOmniBrowser instance.
+ * External drop zones that accept VOB items (keys: VOB.DRAG.KEYS.ITEM / .FOLDER / .ANY)
+ * will receive this object as `dragCtx` in their PNP callbacks.
+ */
+export interface VobDragContext {
+	/** The primary item being dragged. */
+	item: VobItem;
+	/**
+	 * All items in the drag — includes `item` plus any co-selected items.
+	 * Always an array of at least one element.
+	 */
+	selectedItems: VobItem[];
+	/**
+	 * The `instanceId` prop of the VueOmniBrowser instance the drag originated from.
+	 * Useful when multiple browser instances share the same page.
+	 */
+	sourceInstanceId: string | undefined;
+}
+
+/**
+ * The data payload an external draggable must provide when dropping INTO
+ * a VueOmniBrowser instance (keys: VOB.DRAG.KEYS.EXTERNAL).
+ *
+ * The browser will call engine.createItem() with the supplied data, placing
+ * the new item in the folder that was hovered at drop time.
+ */
+export interface VobExternalDropContext {
+	/**
+	 * The item data to create.  `id` is optional — one will be auto-generated
+	 * if omitted.  `parentId` is ignored (the browser sets it from the drop target).
+	 */
+	item: Omit<VobItemInput, 'id'> & { id?: string };
 }

@@ -79,6 +79,15 @@ export interface VobEngine {
 	 */
 	updateItem: (id: string, updates: Partial<Omit<VobItem, 'id'>>) => boolean;
 	/**
+	 * Moves items to a new parent folder.
+	 * Silently skips any ID that doesn't exist or would create a cycle
+	 * (i.e. moving a folder into one of its own descendants).
+	 * @param ids      - IDs of items to move.
+	 * @param parentId - The destination folder ID, or null to move to root.
+	 * @returns The IDs that were actually moved.
+	 */
+	moveItems: (ids: string[], parentId: string | null) => string[];
+	/**
 	 * A counter that increments each time the registry is rebuilt from source data.
 	 * Watchers can use this to detect bulk data changes vs. single-item mutations.
 	 */
@@ -275,6 +284,59 @@ export function useVobEngine(
 	}
 
 	/**
+	 * Moves items to a new parent, skipping items that don't exist or would
+	 * create a cycle (a folder moved into one of its own descendants).
+	 *
+	 * @param ids      - IDs to move.
+	 * @param parentId - Destination parent ID, or null for root.
+	 * @returns The IDs that were actually moved.
+	 */
+	function moveItems(ids: string[], parentId: string | null): string[] {
+		/**
+		 * Returns all descendant IDs of the given item (recursively).
+		 * Used to detect cycles (can't move a folder into its own child).
+		 */
+		function getDescendantIds(id: string): Set<string> {
+			const result = new Set<string>();
+			const stack = [id];
+			while (stack.length) {
+				const current = stack.pop()!;
+				for (const [, item] of registry.value) {
+					if (item.parentId === current) {
+						result.add(item.id);
+						stack.push(item.id);
+					}
+				}
+			}
+			return result;
+		}
+
+		const moved: string[] = [];
+		const newMap = new Map(registry.value);
+
+		for (const id of ids) {
+			const item = newMap.get(id);
+			if (!item) continue;
+
+			// Prevent moving an item into itself or into one of its descendants.
+			if (parentId !== null) {
+				if (id === parentId) continue;
+				if (getDescendantIds(id).has(parentId)) continue;
+			}
+
+			newMap.set(id, { ...item, parentId });
+			moved.push(id);
+		}
+
+		if (moved.length) {
+			registry.value = newMap;
+			registryVersion.value++;
+		}
+
+		return moved;
+	}
+
+	/**
 	 * Re-ingests the current :data prop value.
 	 * Called by the public refresh() API and internally after async dataLoader calls.
 	 */
@@ -298,5 +360,6 @@ export function useVobEngine(
 		createItem,
 		deleteItems,
 		updateItem,
+		moveItems,
 	};
 }

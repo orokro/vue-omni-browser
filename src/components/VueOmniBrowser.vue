@@ -35,6 +35,9 @@ import { useInlineRename } from '../core/useInlineRename';
 import { useVobModal } from '../core/useVobModal';
 import { useContextMenu } from '../core/useContextMenu';
 import { useKeyboardShortcuts } from '../core/useKeyboardShortcuts';
+import { useOpenItem } from '../core/useOpenItem';
+import { useDragDrop } from '../core/useDragDrop';
+import { PNPDragLayer } from 'vue-pick-n-plop';
 import {
 	VOB_ENGINE_KEY,
 	VOB_NAVIGATION_KEY,
@@ -48,6 +51,8 @@ import {
 	VOB_MODAL_KEY,
 	VOB_CONTEXT_MENU_KEY,
 	VOB_THEME_KEY,
+	VOB_OPEN_ITEM_KEY,
+	VOB_DRAG_DROP_KEY,
 } from '../injectionKeys';
 import NavBar from './rows/NavBar.vue';
 import ButtonsBar from './rows/ButtonsBar.vue';
@@ -73,11 +78,19 @@ const props = withDefaults(defineProps<{
 	dataSpec?: VobDataSpec;
 	data?: VobHierarchicalItemInput[] | VobFlatItemInput[];
 	theme?: VobTheme | 'light' | 'dark';
+	/**
+	 * Optional stable identifier for this browser instance.
+	 * Surfaced in VobDragContext.sourceInstanceId so external drop zones can
+	 * distinguish which browser a drag originated from when multiple instances
+	 * share the same page.
+	 */
+	instanceId?: string;
 }>(), {
 	config: () => ({}),
 	dataSpec: () => ({ types: [] }),
 	data: () => [],
 	theme: 'dark',
+	instanceId: undefined,
 });
 
 const emit = defineEmits<{
@@ -131,7 +144,36 @@ const effectiveModal = {
 	},
 };
 
-const contextMenu  = useContextMenu(engine, navigation, selection, clipboard, configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>, effectiveModal);
+// openItem — shared "open" action (double-click / Enter / context menu Open).
+// getApi is a lazy getter to avoid a circular reference with publicApi declared below.
+const openItem = useOpenItem(
+	engine,
+	navigation,
+	selection,
+	configRef as Ref<VobConfig>,
+	() => publicApi,
+);
+
+const contextMenu  = useContextMenu(engine, navigation, selection, clipboard, configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>, effectiveModal, openItem.openItem);
+
+// dragDrop — PNP-based drag-and-drop (no-ops gracefully if vue-pick-n-plop is absent).
+const instanceId = props.instanceId;
+const dragDrop = useDragDrop(
+	engine,
+	navigation,
+	selection,
+	configRef as Ref<VobConfig>,
+	dataSpecRef as Ref<VobDataSpec>,
+	instanceId,
+);
+
+/**
+ * PNPDragLayer teleports drag ghost elements to <body>.
+ * When vue-pick-n-plop is not installed, the alias resolves to pnpStub.ts
+ * which exports null for PNPDragLayer, so the v-if guard keeps it out of
+ * the DOM entirely.
+ */
+const pnpDragLayer = PNPDragLayer;
 
 // containerEl is used by useKeyboardShortcuts to scope shortcuts to this instance.
 const containerEl = ref<HTMLElement | null>(null);
@@ -147,6 +189,7 @@ useKeyboardShortcuts(
 	configRef as Ref<VobConfig>,
 	dataSpecRef as Ref<VobDataSpec>,
 	effectiveModal,
+	openItem.openItem,
 );
 
 // ----------------------------------------------------------------
@@ -164,6 +207,8 @@ provide(VOB_DATA_SPEC_KEY,     dataSpecRef as Ref<VobDataSpec>);
 provide(VOB_INLINE_RENAME_KEY, inlineRename);
 provide(VOB_MODAL_KEY,         effectiveModal);
 provide(VOB_CONTEXT_MENU_KEY,  contextMenu);
+provide(VOB_OPEN_ITEM_KEY,     openItem);
+provide(VOB_DRAG_DROP_KEY,     dragDrop);
 // VOB_THEME_KEY is provided after themeClass + overlayStyle are declared below.
 
 // ----------------------------------------------------------------
@@ -360,6 +405,9 @@ defineExpose(publicApi);
 	<!-- Teleport-based overlays — rendered outside .vob-container but themed via inject -->
 	<VobModal />
 	<VobContextMenu />
+	<!-- PNPDragLayer teleports all drag ghosts to <body>. -->
+	<!-- Only rendered when vue-pick-n-plop is installed (peer dep). -->
+	<component :is="pnpDragLayer" v-if="pnpDragLayer" :z-index="9500" />
 </template>
 
 <style scoped>

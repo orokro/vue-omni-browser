@@ -139,6 +139,10 @@
 		opacity: 0.45;
 	}
 
+	&--dragging {
+		opacity: 0.35;
+	}
+
 	&--renaming {
 		background: var(--vob-row-hover) !important;
 	}
@@ -244,6 +248,8 @@
 	}
 
 	&--cut { opacity: 0.45; }
+
+	&--dragging { opacity: 0.35; }
 }
 
 .vob-icon-cell__icon {
@@ -324,6 +330,8 @@
 	}
 
 	&--cut { opacity: 0.45; }
+
+	&--dragging { opacity: 0.35; }
 }
 
 .vob-tree-indent {
@@ -440,6 +448,8 @@
 	}
 
 	&--cut { opacity: 0.45; }
+
+	&--dragging { opacity: 0.35; }
 }
 
 .vob-column-row__icon {

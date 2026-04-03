@@ -31,6 +31,7 @@ import type { VobSortFilter } from './useSortFilter';
 import type { VobClipboardState } from './useClipboard';
 import type { VobInlineRenameState } from './useInlineRename';
 import type { VobModalState } from './useVobModal';
+import type { VobOpenItemState } from './useOpenItem';
 import { VOB } from '../constants';
 
 // ----------------------------------------------------------------
@@ -62,6 +63,7 @@ export function useKeyboardShortcuts(
 	config: Ref<VobConfig>,
 	dataSpec: Ref<VobDataSpec>,
 	modal: VobModalState,
+	openItem: VobOpenItemState['openItem'],
 ): void {
 	// ----------------------------------------------------------------
 	// Helpers
@@ -189,15 +191,13 @@ export function useKeyboardShortcuts(
 			return true;
 		}
 
-		// Enter → navigate into selected folder
+		// Enter → open selected item (navigate for containers, fire onOpen for all).
 		if (event.key === 'Enter' && singleSel) {
 			const id   = [...selection.selectedIds.value][0];
 			const item = engine.getItem(id);
-			const def  = item ? engine.getTypeDefinition(item.type) : undefined;
-			if (def?.hasChildren) {
+			if (item) {
 				event.preventDefault();
-				navigation.navigateTo([...navigation.currentPathIds.value, id]);
-				selection.clearSelection();
+				openItem(item);
 				return true;
 			}
 		}
