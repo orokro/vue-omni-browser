@@ -79,4 +79,17 @@ export {
 	VOB_CONFIG_KEY,
 	VOB_DATA_SPEC_KEY,
 	VOB_INLINE_RENAME_KEY,
+	VOB_MODAL_KEY,
+	VOB_CONTEXT_MENU_KEY,
+	VOB_THEME_KEY,
 } from './injectionKeys';
+
+// ----------------------------------------------------------------
+// Composable return types — for consumers building custom child components
+// ----------------------------------------------------------------
+export type { VobEngine } from './core/useVobEngine';
+export type { VobNavigation } from './core/useNavigation';
+export type { VobSelection } from './core/useSelection';
+export type { VobClipboardState } from './core/useClipboard';
+export type { VobModalState } from './core/useVobModal';
+export type { VobContextMenuState, ResolvedContextEntry } from './core/useContextMenu';

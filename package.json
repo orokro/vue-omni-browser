@@ -1,8 +1,19 @@
 {
   "name": "vue-omni-browser",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
+  "main": "./dist/vue-omni-browser.umd.cjs",
+  "module": "./dist/vue-omni-browser.js",
+  "exports": {
+    ".": {
+      "import": "./dist/vue-omni-browser.js",
+      "require": "./dist/vue-omni-browser.umd.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",

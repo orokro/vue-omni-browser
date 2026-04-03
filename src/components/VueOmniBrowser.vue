@@ -176,6 +176,13 @@ watch(navigation.currentPathIds, (pathIds) => {
 	selection.clearSelection();
 });
 
+// Emit onDataChanged whenever the internal registry mutates.
+// immediate: false because useVobEngine already populates the registry
+// synchronously during setup — we only want post-setup mutations.
+watch(engine.registry, () => {
+	emit('onDataChanged', [...engine.registry.value.values()]);
+}, { immediate: false });
+
 // ----------------------------------------------------------------
 // Loading overlay
 // ----------------------------------------------------------------
@@ -299,14 +306,11 @@ const publicApi: VobApi = {
 	refresh:     () => engine.refresh(),
 	setLoading:  (loading) => { isLoading.value = loading; },
 	createItem:  (data, parentId = null) => {
-		const id = engine.createItem({ ...(data as Omit<VobItem, 'id'>), parentId });
-		emit('onDataChanged', [...engine.registry.value.values()]);
-		return id;
+		return engine.createItem({ ...(data as Omit<VobItem, 'id'>), parentId });
 	},
 	deleteItems: (ids) => {
 		const removed = engine.deleteItems(ids);
 		selection.setSelection([...selection.selectedIds.value].filter((id) => !removed.includes(id)));
-		emit('onDataChanged', [...engine.registry.value.values()]);
 		return removed;
 	},
 };

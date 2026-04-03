@@ -261,11 +261,18 @@ export function useKeyboardShortcuts(
 						break;
 					case VOB.ACTIONS.NEW_FOLDER:
 						if (!readOnly) {
-							engine.createItem({
+							const id = engine.createItem({
 								type: 'folder',
 								name: 'New Folder',
 								parentId: navigation.currentFolderId.value,
 							});
+							if (id) {
+								setTimeout(() => {
+									document.dispatchEvent(
+										new CustomEvent('vob:rename-selected', { detail: { id } }),
+									);
+								}, 0);
+							}
 						}
 						break;
 				}
@@ -285,8 +292,9 @@ export function useKeyboardShortcuts(
 
 	function onKeydown(event: KeyboardEvent): void {
 		if (!isFocusedInContainer()) return;
-		if (handleBuiltin(event)) return;
-		handleUserDefined(event);
+		// User-defined shortcuts run first so they can override built-ins.
+		if (handleUserDefined(event)) return;
+		handleBuiltin(event);
 	}
 
 	document.addEventListener('keydown', onKeydown);

@@ -256,12 +256,19 @@ export function useContextMenu(
 					label: 'New Folder', icon: 'create_new_folder',
 					disabled: readOnly,
 					action: () => {
-						engine.createItem({
+						const id = engine.createItem({
 							type: 'folder',
 							name: 'New Folder',
 							parentId: navigation.currentFolderId.value,
 						});
 						close();
+						if (id) {
+							setTimeout(() => {
+								document.dispatchEvent(
+									new CustomEvent('vob:rename-selected', { detail: { id } }),
+								);
+							}, 0);
+						}
 					},
 				};
 
@@ -363,8 +370,15 @@ export function useContextMenu(
 				label: 'New Folder', icon: 'create_new_folder',
 				disabled: readOnly,
 				action: () => {
-					engine.createItem({ type: 'folder', name: 'New Folder', parentId: targetId });
+					const id = engine.createItem({ type: 'folder', name: 'New Folder', parentId: targetId });
 					close();
+					if (id) {
+						setTimeout(() => {
+							document.dispatchEvent(
+								new CustomEvent('vob:rename-selected', { detail: { id } }),
+							);
+						}, 0);
+					}
 				},
 			},
 			{ kind: 'separator', key: 'bg-sep1' },

@@ -23,6 +23,7 @@ import {
 	VOB_CLIPBOARD_KEY,
 	VOB_CONFIG_KEY,
 	VOB_VIEW_MODE_KEY,
+	VOB_MODAL_KEY,
 } from '../../injectionKeys';
 import VobIcon from './VobIcon.vue';
 
@@ -46,6 +47,7 @@ const selection = inject(VOB_SELECTION_KEY);
 const clipboard = inject(VOB_CLIPBOARD_KEY);
 const config = inject(VOB_CONFIG_KEY);
 const viewMode = inject(VOB_VIEW_MODE_KEY);
+const modal = inject(VOB_MODAL_KEY);
 
 // ----------------------------------------------------------------
 // Entry type discrimination
@@ -74,7 +76,8 @@ interface BuiltinDef {
 	icon: string;
 	label: string;
 	disabled: boolean;
-	action: () => void;
+	/** May be async (e.g. delete confirms via modal before proceeding). */
+	action: () => void | Promise<void>;
 }
 
 /** Returns a context object for custom action callbacks. */
@@ -126,17 +129,22 @@ const builtinDef = computed<BuiltinDef | null>(() => {
 				disabled: false,
 				action: () => engine?.refresh(),
 			};
-		case VOB.BUTTONS.DELETE:
-			return {
-				icon: 'delete',
-				label: 'Delete',
-				disabled: !hasSelection.value || readOnly.value,
-				action: () => {
-					const ids = [...(selection?.selectedIds.value ?? [])];
-					engine?.deleteItems(ids);
-					selection?.clearSelection();
-				},
-			};
+		case VOB.BUTTONS.DELETE: {
+				const ids = [...(selection?.selectedIds.value ?? [])];
+				const count = ids.length;
+				const label = count === 1 ? '1 item' : `${count} items`;
+				return {
+					icon: 'delete',
+					label: 'Delete',
+					disabled: !hasSelection.value || readOnly.value,
+					action: async () => {
+						const confirmed = await modal?.confirm(`Delete ${label}?`);
+						if (!confirmed) return;
+						engine?.deleteItems(ids);
+						selection?.clearSelection();
+					},
+				};
+			}
 		case VOB.BUTTONS.RENAME:
 			return {
 				icon: 'edit',
@@ -184,7 +192,15 @@ const builtinDef = computed<BuiltinDef | null>(() => {
 				disabled: readOnly.value,
 				action: () => {
 					const parentId = navigation?.currentFolderId.value ?? null;
-					engine?.createItem({ type: 'folder', name: 'New Folder', parentId });
+					const id = engine?.createItem({ type: 'folder', name: 'New Folder', parentId });
+					if (id) {
+						// Immediately begin inline rename so the user can type the real name.
+						setTimeout(() => {
+							document.dispatchEvent(
+								new CustomEvent('vob:rename-selected', { detail: { id } }),
+							);
+						}, 0);
+					}
 				},
 			};
 		default:
