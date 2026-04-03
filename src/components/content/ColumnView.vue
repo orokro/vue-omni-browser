@@ -24,6 +24,7 @@
 
 import { computed, ref, watch, nextTick, inject } from 'vue';
 import type { VobItem } from '../../types';
+import { vFocusSelect } from '@/directives/focusSelect';
 import {
 	VOB_ENGINE_KEY,
 	VOB_NAVIGATION_KEY,
@@ -257,7 +258,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 					v-if="inlineRename.isRenaming(item.id)"
 					v-model="inlineRename.renameValue.value"
 					class="vob-inline-rename vob-column-row__name"
-					autofocus
+					v-focus-select
 					@blur="inlineRename.commitRename()"
 					@keydown="handleRenameKeydown"
 					@click.stop
