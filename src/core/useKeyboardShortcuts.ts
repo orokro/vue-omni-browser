@@ -30,6 +30,7 @@ import type { VobSelection } from './useSelection';
 import type { VobSortFilter } from './useSortFilter';
 import type { VobClipboardState } from './useClipboard';
 import type { VobInlineRenameState } from './useInlineRename';
+import type { VobModalState } from './useVobModal';
 import { VOB } from '../constants';
 
 // ----------------------------------------------------------------
@@ -60,6 +61,7 @@ export function useKeyboardShortcuts(
 	inlineRename: VobInlineRenameState,
 	config: Ref<VobConfig>,
 	dataSpec: Ref<VobDataSpec>,
+	modal: VobModalState,
 ): void {
 	// ----------------------------------------------------------------
 	// Helpers
@@ -99,7 +101,8 @@ export function useKeyboardShortcuts(
 
 	/**
 	 * Attempt to handle a keydown event as a built-in shortcut.
-	 * Returns true if the event was consumed.
+	 * Returns true if the event was consumed (i.e. we handled the key, even
+	 * if the async delete is still pending confirmation).
 	 */
 	function handleBuiltin(event: KeyboardEvent): boolean {
 		const cfg      = config.value;
@@ -126,12 +129,18 @@ export function useKeyboardShortcuts(
 		// Don't handle anything else while renaming — the rename input owns the keyboard.
 		if (isRenaming) return false;
 
-		// Delete / Backspace → delete selected
+		// Delete / Backspace → confirm then delete selected
 		if ((event.key === 'Delete' || event.key === 'Backspace') && !ctrl) {
 			if (hasSel && !readOnly) {
 				event.preventDefault();
-				engine.deleteItems([...selection.selectedIds.value]);
-				selection.clearSelection();
+				const count = selection.selectedIds.value.size;
+				const label = count === 1 ? '1 item' : `${count} items`;
+				const ids = [...selection.selectedIds.value];
+				modal.confirm(`Delete ${label}?`).then((confirmed) => {
+					if (!confirmed) return;
+					engine.deleteItems(ids);
+					selection.clearSelection();
+				});
 				return true;
 			}
 		}
@@ -221,8 +230,14 @@ export function useKeyboardShortcuts(
 				switch (shortcut.action) {
 					case VOB.ACTIONS.DELETE:
 						if (hasSel && !readOnly) {
-							engine.deleteItems([...selection.selectedIds.value]);
-							selection.clearSelection();
+							const count = selection.selectedIds.value.size;
+							const label = count === 1 ? '1 item' : `${count} items`;
+							const ids = [...selection.selectedIds.value];
+							modal.confirm(`Delete ${label}?`).then((confirmed) => {
+								if (!confirmed) return;
+								engine.deleteItems(ids);
+								selection.clearSelection();
+							});
 						}
 						break;
 					case VOB.ACTIONS.RENAME:

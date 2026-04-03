@@ -62,6 +62,7 @@ onUnmounted(() => {
 				:style="[theme.overlayStyle.value, { top: ctx.position.value.y + 'px', left: ctx.position.value.x + 'px' }]"
 				role="menu"
 				@click.stop
+				@mousedown.stop
 			>
 				<template v-for="entry in ctx.entries.value" :key="entry.key">
 					<!-- Separator -->

@@ -25,6 +25,7 @@ import type { VobEngine } from './useVobEngine';
 import type { VobNavigation } from './useNavigation';
 import type { VobSelection } from './useSelection';
 import type { VobClipboardState } from './useClipboard';
+import type { VobModalState } from './useVobModal';
 import { VOB } from '../constants';
 
 // ----------------------------------------------------------------
@@ -38,7 +39,8 @@ export interface ResolvedContextEntry {
 	label?: string;
 	icon?: string;
 	disabled?: boolean;
-	action?: () => void;
+	/** May be async (e.g. delete requires a confirm dialog). */
+	action?: () => void | Promise<void>;
 }
 
 export interface VobContextMenuState {
@@ -104,6 +106,7 @@ export function useContextMenu(
 	clipboard: VobClipboardState,
 	config: Ref<VobConfig>,
 	_dataSpec: Ref<VobDataSpec>,
+	modal: VobModalState,
 ): VobContextMenuState {
 	const isOpen   = ref(false);
 	const position = ref<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -230,17 +233,22 @@ export function useContextMenu(
 					},
 				};
 
-			case VOB.ACTIONS.DELETE:
+			case VOB.ACTIONS.DELETE: {
+				const count = selection.selectedIds.value.size;
+				const label = count === 1 ? '1 item' : `${count} items`;
 				return {
 					kind: 'item', key: `delete-${index}`,
 					label: 'Delete', icon: 'delete',
 					disabled: !hasSelection || readOnly,
-					action: () => {
+					action: async () => {
+						close();
+						const confirmed = await modal.confirm(`Delete ${label}?`);
+						if (!confirmed) return;
 						engine.deleteItems([...selection.selectedIds.value]);
 						selection.clearSelection();
-						close();
 					},
 				};
+			}
 
 			case VOB.ACTIONS.NEW_FOLDER:
 				return {

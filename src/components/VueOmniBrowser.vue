@@ -113,7 +113,25 @@ const viewMode     = useViewMode(configRef as Ref<VobConfig>);
 const clipboard    = useClipboard(engine, navigation, configRef as Ref<VobConfig>);
 const inlineRename = useInlineRename(engine, configRef as Ref<VobConfig>);
 const vobModal     = useVobModal();
-const contextMenu  = useContextMenu(engine, navigation, selection, clipboard, configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>);
+
+/**
+ * effectiveModal merges config.modals overrides with the built-in VobModal
+ * component. If a consumer provides their own confirm/prompt implementations
+ * (e.g. using their own UI library), those take precedence.
+ */
+const effectiveModal = {
+	...vobModal,
+	confirm: (message: string): Promise<boolean> => {
+		const override = configRef.value.modals?.confirm;
+		return override ? override(message) : vobModal.confirm(message);
+	},
+	prompt: (message: string, defaultValue?: string): Promise<string | null> => {
+		const override = configRef.value.modals?.prompt;
+		return override ? override(message, defaultValue) : vobModal.prompt(message, defaultValue);
+	},
+};
+
+const contextMenu  = useContextMenu(engine, navigation, selection, clipboard, configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>, effectiveModal);
 
 // containerEl is used by useKeyboardShortcuts to scope shortcuts to this instance.
 const containerEl = ref<HTMLElement | null>(null);
@@ -128,6 +146,7 @@ useKeyboardShortcuts(
 	inlineRename,
 	configRef as Ref<VobConfig>,
 	dataSpecRef as Ref<VobDataSpec>,
+	effectiveModal,
 );
 
 // ----------------------------------------------------------------
@@ -143,7 +162,7 @@ provide(VOB_CLIPBOARD_KEY,     clipboard);
 provide(VOB_CONFIG_KEY,        configRef as Ref<VobConfig>);
 provide(VOB_DATA_SPEC_KEY,     dataSpecRef as Ref<VobDataSpec>);
 provide(VOB_INLINE_RENAME_KEY, inlineRename);
-provide(VOB_MODAL_KEY,         vobModal);
+provide(VOB_MODAL_KEY,         effectiveModal);
 provide(VOB_CONTEXT_MENU_KEY,  contextMenu);
 // VOB_THEME_KEY is provided after themeClass + overlayStyle are declared below.
 
