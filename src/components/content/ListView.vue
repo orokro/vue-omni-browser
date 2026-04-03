@@ -22,20 +22,22 @@ import {
 	VOB_CLIPBOARD_KEY,
 	VOB_DATA_SPEC_KEY,
 	VOB_INLINE_RENAME_KEY,
+	VOB_CONTEXT_MENU_KEY,
 } from '../../injectionKeys';
 
 // ----------------------------------------------------------------
 // Injected state
 // ----------------------------------------------------------------
 
-const engine      = inject(VOB_ENGINE_KEY)!;
-const navigation  = inject(VOB_NAVIGATION_KEY)!;
-const selection   = inject(VOB_SELECTION_KEY)!;
-const sortFilter  = inject(VOB_SORT_FILTER_KEY)!;
-const viewMode    = inject(VOB_VIEW_MODE_KEY)!;
-const clipboard   = inject(VOB_CLIPBOARD_KEY)!;
-const dataSpec    = inject(VOB_DATA_SPEC_KEY)!;
+const engine       = inject(VOB_ENGINE_KEY)!;
+const navigation   = inject(VOB_NAVIGATION_KEY)!;
+const selection    = inject(VOB_SELECTION_KEY)!;
+const sortFilter   = inject(VOB_SORT_FILTER_KEY)!;
+const viewMode     = inject(VOB_VIEW_MODE_KEY)!;
+const clipboard    = inject(VOB_CLIPBOARD_KEY)!;
+const dataSpec     = inject(VOB_DATA_SPEC_KEY)!;
 const inlineRename = inject(VOB_INLINE_RENAME_KEY)!;
+const contextMenu  = inject(VOB_CONTEXT_MENU_KEY)!;
 
 // ----------------------------------------------------------------
 // Current items
@@ -157,6 +159,25 @@ function handleDblClick(item: VobItem): void {
 }
 
 // ----------------------------------------------------------------
+// Context menu
+// ----------------------------------------------------------------
+
+/**
+ * Right-click on an item row: ensure item is selected and open the context menu.
+ */
+function handleContextMenu(item: VobItem, event: MouseEvent): void {
+	if (inlineRename.isRenaming(item.id)) return;
+	contextMenu.openForItem(item, event);
+}
+
+/**
+ * Right-click on empty space in the list body.
+ */
+function handleBgContextMenu(event: MouseEvent): void {
+	contextMenu.openForBackground(navigation.currentFolderId.value, event);
+}
+
+// ----------------------------------------------------------------
 // Inline rename
 // ----------------------------------------------------------------
 
@@ -201,7 +222,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 		</div>
 
 		<!-- Scrollable body -->
-		<div class="vob-list-body">
+		<div class="vob-list-body" @contextmenu.self.prevent="handleBgContextMenu($event)">
 			<div
 				v-for="item in currentItems"
 				:key="item.id"
@@ -213,6 +234,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 				}"
 				@click="handleClick(item, $event)"
 				@dblclick="handleDblClick(item)"
+				@contextmenu.prevent="handleContextMenu(item, $event)"
 			>
 				<!-- Name cell (always present) -->
 				<div class="vob-list-cell vob-list-cell--name">

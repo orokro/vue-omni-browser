@@ -19,6 +19,7 @@ import {
 	VOB_CLIPBOARD_KEY,
 	VOB_DATA_SPEC_KEY,
 	VOB_INLINE_RENAME_KEY,
+	VOB_CONTEXT_MENU_KEY,
 } from '../../injectionKeys';
 
 // ----------------------------------------------------------------
@@ -33,6 +34,7 @@ const viewMode     = inject(VOB_VIEW_MODE_KEY)!;
 const clipboard    = inject(VOB_CLIPBOARD_KEY)!;
 const dataSpec     = inject(VOB_DATA_SPEC_KEY)!;
 const inlineRename = inject(VOB_INLINE_RENAME_KEY)!;
+const contextMenu  = inject(VOB_CONTEXT_MENU_KEY)!;
 
 // ----------------------------------------------------------------
 // Current items & grid
@@ -81,6 +83,25 @@ function handleDblClick(item: VobItem): void {
 }
 
 // ----------------------------------------------------------------
+// Context menu
+// ----------------------------------------------------------------
+
+/**
+ * Right-click on an icon cell.
+ */
+function handleContextMenu(item: VobItem, event: MouseEvent): void {
+	if (inlineRename.isRenaming(item.id)) return;
+	contextMenu.openForItem(item, event);
+}
+
+/**
+ * Right-click on the empty grid area.
+ */
+function handleBgContextMenu(event: MouseEvent): void {
+	contextMenu.openForBackground(navigation.currentFolderId.value, event);
+}
+
+// ----------------------------------------------------------------
 // Inline rename
 // ----------------------------------------------------------------
 
@@ -96,8 +117,8 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-	<div class="vob-icon-view" :style="zoomStyle">
-		<div class="vob-icon-grid">
+	<div class="vob-icon-view" :style="zoomStyle" @contextmenu.self.prevent="handleBgContextMenu($event)">
+		<div class="vob-icon-grid" @contextmenu.self.prevent="handleBgContextMenu($event)">
 			<div
 				v-for="item in currentItems"
 				:key="item.id"
@@ -108,6 +129,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 				}"
 				@click="handleClick(item, $event)"
 				@dblclick="handleDblClick(item)"
+				@contextmenu.prevent="handleContextMenu(item, $event)"
 			>
 				<!-- Icon -->
 				<div class="vob-icon-cell__icon">

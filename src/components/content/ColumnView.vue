@@ -32,6 +32,7 @@ import {
 	VOB_CLIPBOARD_KEY,
 	VOB_DATA_SPEC_KEY,
 	VOB_INLINE_RENAME_KEY,
+	VOB_CONTEXT_MENU_KEY,
 } from '../../injectionKeys';
 
 // ----------------------------------------------------------------
@@ -45,6 +46,7 @@ const sortFilter   = inject(VOB_SORT_FILTER_KEY)!;
 const clipboard    = inject(VOB_CLIPBOARD_KEY)!;
 const dataSpec     = inject(VOB_DATA_SPEC_KEY)!;
 const inlineRename = inject(VOB_INLINE_RENAME_KEY)!;
+const contextMenu  = inject(VOB_CONTEXT_MENU_KEY)!;
 
 // ----------------------------------------------------------------
 // Column state
@@ -187,6 +189,31 @@ function handleDblClick(item: VobItem, colIndex: number): void {
 }
 
 // ----------------------------------------------------------------
+// Context menu
+// ----------------------------------------------------------------
+
+/**
+ * Right-click on an item row in a column.
+ */
+function handleContextMenu(item: VobItem, colIndex: number, event: MouseEvent): void {
+	if (inlineRename.isRenaming(item.id)) return;
+	// Ensure the item is selected before opening the menu.
+	if (!selection.isSelected(item.id)) {
+		const colItems = columns.value[colIndex].items;
+		selection.handleClick(item.id, 'none', colItems.map((i) => i.id));
+	}
+	contextMenu.openForItem(item, event);
+}
+
+/**
+ * Right-click on empty space in a column. The target folder is the column's
+ * parentId (the folder whose children are shown in that column).
+ */
+function handleBgContextMenu(colParentId: string | null, event: MouseEvent): void {
+	contextMenu.openForBackground(colParentId, event);
+}
+
+// ----------------------------------------------------------------
 // Inline rename
 // ----------------------------------------------------------------
 
@@ -207,6 +234,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 			v-for="(col, colIndex) in columns"
 			:key="colIndex"
 			class="vob-column"
+			@contextmenu.self.prevent="handleBgContextMenu(col.parentId, $event)"
 		>
 			<!-- Items in this column -->
 			<div
@@ -220,6 +248,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 				}"
 				@click="handleClick(item, colIndex, $event)"
 				@dblclick="handleDblClick(item, colIndex)"
+				@contextmenu.prevent="handleContextMenu(item, colIndex, $event)"
 			>
 				<span class="material-icons vob-column-row__icon">{{ iconFor(item) }}</span>
 

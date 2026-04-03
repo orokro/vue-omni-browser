@@ -11,7 +11,7 @@
  *   const engine = inject(VOB_ENGINE_KEY)!;
  */
 
-import type { InjectionKey, Ref } from 'vue';
+import type { InjectionKey, Ref, ComputedRef } from 'vue';
 import type { VobConfig, VobDataSpec } from './types';
 import type { VobEngine } from './core/useVobEngine';
 import type { VobNavigation } from './core/useNavigation';
@@ -20,6 +20,8 @@ import type { VobSortFilter } from './core/useSortFilter';
 import type { VobViewModeState } from './core/useViewMode';
 import type { VobClipboardState } from './core/useClipboard';
 import type { VobInlineRenameState } from './core/useInlineRename';
+import type { VobModalState } from './core/useVobModal';
+import type { VobContextMenuState } from './core/useContextMenu';
 
 export const VOB_ENGINE_KEY: InjectionKey<VobEngine> = Symbol('vob-engine');
 export const VOB_NAVIGATION_KEY: InjectionKey<VobNavigation> = Symbol('vob-navigation');
@@ -36,3 +38,19 @@ export const VOB_DATA_SPEC_KEY: InjectionKey<Ref<VobDataSpec>> = Symbol('vob-dat
 
 /** The inline rename state, provided by VueOmniBrowser.vue. */
 export const VOB_INLINE_RENAME_KEY: InjectionKey<VobInlineRenameState> = Symbol('vob-inline-rename');
+
+/** The modal state (confirm/prompt dialogs), provided by VueOmniBrowser.vue. */
+export const VOB_MODAL_KEY: InjectionKey<VobModalState> = Symbol('vob-modal');
+
+/** The context menu state, provided by VueOmniBrowser.vue. */
+export const VOB_CONTEXT_MENU_KEY: InjectionKey<VobContextMenuState> = Symbol('vob-context-menu');
+
+/**
+ * Theme helpers for Teleport-based overlays.
+ * Provides themeClass (CSS class name) and overlayStyle (inline CSS vars object)
+ * so components rendered outside .vob-container still receive the correct theme.
+ */
+export const VOB_THEME_KEY: InjectionKey<{
+	themeClass: ComputedRef<string>;
+	overlayStyle: ComputedRef<Record<string, string>>;
+}> = Symbol('vob-theme');

@@ -21,6 +21,7 @@ import {
 	VOB_CLIPBOARD_KEY,
 	VOB_DATA_SPEC_KEY,
 	VOB_INLINE_RENAME_KEY,
+	VOB_CONTEXT_MENU_KEY,
 } from '../../injectionKeys';
 
 // ----------------------------------------------------------------
@@ -33,6 +34,7 @@ const selection    = inject(VOB_SELECTION_KEY)!;
 const clipboard    = inject(VOB_CLIPBOARD_KEY)!;
 const dataSpec     = inject(VOB_DATA_SPEC_KEY)!;
 const inlineRename = inject(VOB_INLINE_RENAME_KEY)!;
+const contextMenu  = inject(VOB_CONTEXT_MENU_KEY)!;
 
 // ----------------------------------------------------------------
 // Expand / collapse state
@@ -140,6 +142,27 @@ function buildPathTo(id: string): string[] {
 }
 
 // ----------------------------------------------------------------
+// Context menu
+// ----------------------------------------------------------------
+
+/**
+ * Right-click on a tree row.
+ */
+function handleContextMenu(row: TreeViewRow, event: MouseEvent): void {
+	if (inlineRename.isRenaming(row.item.id)) return;
+	contextMenu.openForItem(row.item, event);
+}
+
+/**
+ * Right-click on empty space in the tree view.
+ * Use the current navigation folder as the target (tree shows the whole tree,
+ * so "background" paste/new-folder targets the currently navigated folder).
+ */
+function handleBgContextMenu(event: MouseEvent): void {
+	contextMenu.openForBackground(navigation.currentFolderId.value, event);
+}
+
+// ----------------------------------------------------------------
 // Inline rename
 // ----------------------------------------------------------------
 
@@ -155,7 +178,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-	<div class="vob-tree-view">
+	<div class="vob-tree-view" @contextmenu.self.prevent="handleBgContextMenu($event)">
 		<div
 			v-for="row in treeRows"
 			:key="row.item.id"
@@ -166,6 +189,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 			}"
 			@click="handleClick(row, $event)"
 			@dblclick="handleDblClick(row)"
+			@contextmenu.prevent="handleContextMenu(row, $event)"
 		>
 			<!-- Left indentation spacer -->
 			<span class="vob-tree-indent" :style="{ width: indentWidth(row.depth) }" />

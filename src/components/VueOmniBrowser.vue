@@ -32,6 +32,9 @@ import { useSortFilter } from '../core/useSortFilter';
 import { useViewMode } from '../core/useViewMode';
 import { useClipboard } from '../core/useClipboard';
 import { useInlineRename } from '../core/useInlineRename';
+import { useVobModal } from '../core/useVobModal';
+import { useContextMenu } from '../core/useContextMenu';
+import { useKeyboardShortcuts } from '../core/useKeyboardShortcuts';
 import {
 	VOB_ENGINE_KEY,
 	VOB_NAVIGATION_KEY,
@@ -42,12 +45,17 @@ import {
 	VOB_CONFIG_KEY,
 	VOB_DATA_SPEC_KEY,
 	VOB_INLINE_RENAME_KEY,
+	VOB_MODAL_KEY,
+	VOB_CONTEXT_MENU_KEY,
+	VOB_THEME_KEY,
 } from '../injectionKeys';
 import NavBar from './rows/NavBar.vue';
 import ButtonsBar from './rows/ButtonsBar.vue';
 import StatusBar from './rows/StatusBar.vue';
 import CustomBar from './rows/CustomBar.vue';
 import ContentArea from './content/ContentArea.vue';
+import VobModal from './VobModal.vue';
+import VobContextMenu from './VobContextMenu.vue';
 
 import '../styles/main.scss';
 // Material Icons font — bundled locally via the material-icons npm package.
@@ -97,13 +105,30 @@ watch(() => props.data, (newData) => {
 // Initialise composables
 // ----------------------------------------------------------------
 
-const engine      = useVobEngine(configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>, dataRef);
-const navigation  = useNavigation(engine, configRef as Ref<VobConfig>);
-const selection   = useSelection(engine, configRef as Ref<VobConfig>);
-const sortFilter  = useSortFilter();
-const viewMode    = useViewMode(configRef as Ref<VobConfig>);
-const clipboard   = useClipboard(engine, navigation, configRef as Ref<VobConfig>);
+const engine       = useVobEngine(configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>, dataRef);
+const navigation   = useNavigation(engine, configRef as Ref<VobConfig>);
+const selection    = useSelection(engine, configRef as Ref<VobConfig>);
+const sortFilter   = useSortFilter();
+const viewMode     = useViewMode(configRef as Ref<VobConfig>);
+const clipboard    = useClipboard(engine, navigation, configRef as Ref<VobConfig>);
 const inlineRename = useInlineRename(engine, configRef as Ref<VobConfig>);
+const vobModal     = useVobModal();
+const contextMenu  = useContextMenu(engine, navigation, selection, clipboard, configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>);
+
+// containerEl is used by useKeyboardShortcuts to scope shortcuts to this instance.
+const containerEl = ref<HTMLElement | null>(null);
+
+useKeyboardShortcuts(
+	containerEl,
+	engine,
+	navigation,
+	selection,
+	sortFilter,
+	clipboard,
+	inlineRename,
+	configRef as Ref<VobConfig>,
+	dataSpecRef as Ref<VobDataSpec>,
+);
 
 // ----------------------------------------------------------------
 // Provide to all descendants
@@ -118,6 +143,9 @@ provide(VOB_CLIPBOARD_KEY,     clipboard);
 provide(VOB_CONFIG_KEY,        configRef as Ref<VobConfig>);
 provide(VOB_DATA_SPEC_KEY,     dataSpecRef as Ref<VobDataSpec>);
 provide(VOB_INLINE_RENAME_KEY, inlineRename);
+provide(VOB_MODAL_KEY,         vobModal);
+provide(VOB_CONTEXT_MENU_KEY,  contextMenu);
+// VOB_THEME_KEY is provided after themeClass + overlayStyle are declared below.
 
 // ----------------------------------------------------------------
 // Emit navigate when the path changes
@@ -187,6 +215,26 @@ const themeVars = computed<Record<string, string>>(() => {
 	return vars;
 });
 
+/**
+ * Provides all necessary CSS variables to Teleport-based overlays (VobModal,
+ * VobContextMenu) that render outside .vob-container and therefore can't
+ * inherit our scoped custom properties via the DOM.
+ *
+ * We seed dimension tokens with safe defaults so the overlay always has
+ * something to work with, then overlay user-supplied vars on top.
+ */
+const overlayStyle = computed<Record<string, string>>(() => ({
+	'--vob-font-family':    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+	'--vob-font-size':      '13px',
+	'--vob-icon-size':      '18px',
+	'--vob-border-radius':  '4px',
+	...themeVars.value,
+}));
+
+// Provided here (after themeClass + overlayStyle are defined) so descendants
+// that teleport outside .vob-container can apply the correct theme.
+provide(VOB_THEME_KEY, { themeClass, overlayStyle });
+
 // ----------------------------------------------------------------
 // Row rendering helpers
 // ----------------------------------------------------------------
@@ -249,6 +297,7 @@ defineExpose(publicApi);
 
 <template>
 	<div
+		ref="containerEl"
 		class="vob-container"
 		:class="[themeClass]"
 		:style="themeVars"
@@ -284,6 +333,10 @@ defineExpose(publicApi);
 			</div>
 		</Transition>
 	</div>
+
+	<!-- Teleport-based overlays — rendered outside .vob-container but themed via inject -->
+	<VobModal />
+	<VobContextMenu />
 </template>
 
 <style scoped>
