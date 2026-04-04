@@ -221,10 +221,11 @@ watch(navigation.currentPathIds, (pathIds) => {
 	selection.clearSelection();
 });
 
-// Emit onDataChanged whenever the internal registry mutates.
-// immediate: false because useVobEngine already populates the registry
-// synchronously during setup — we only want post-setup mutations.
-watch(engine.registry, () => {
+// Emit onDataChanged only on internal user-driven mutations (create, delete,
+// rename, move). Watching mutationVersion rather than registry means that
+// re-ingesting the :data prop (e.g. when the parent feeds onDataChanged items
+// back into :data) does NOT re-trigger the event, breaking the update loop.
+watch(engine.mutationVersion, () => {
 	emit('onDataChanged', [...engine.registry.value.values()]);
 }, { immediate: false });
 
@@ -361,11 +362,17 @@ const publicApi: VobApi = {
 };
 
 defineExpose(publicApi);
+
+// The template has multiple root nodes (container + teleported overlays + PNPDragLayer),
+// so Vue cannot auto-inherit attrs like class/style. We disable auto-inherit and
+// forward $attrs onto the real root element manually.
+defineOptions({ inheritAttrs: false });
 </script>
 
 <template>
 	<div
 		ref="containerEl"
+		v-bind="$attrs"
 		class="vob-container"
 		:class="[themeClass]"
 		:style="themeVars"

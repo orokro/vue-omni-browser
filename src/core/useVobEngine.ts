@@ -92,6 +92,13 @@ export interface VobEngine {
 	 * Watchers can use this to detect bulk data changes vs. single-item mutations.
 	 */
 	registryVersion: Readonly<Ref<number>>;
+	/**
+	 * A counter that increments only on internal user-driven mutations
+	 * (create, delete, rename, move). Does NOT increment when the registry is
+	 * rebuilt from the :data prop — use this to drive onDataChanged so that
+	 * feeding the emitted items back into :data does not create an update loop.
+	 */
+	mutationVersion: Readonly<Ref<number>>;
 }
 
 // ----------------------------------------------------------------
@@ -121,6 +128,8 @@ export function useVobEngine(
 
 	// Incremented each time ingestData() runs a full rebuild from source data.
 	const registryVersion = shallowRef(0);
+	// Incremented only by internal user-driven mutations (not prop re-ingests).
+	const mutationVersion = shallowRef(0);
 
 	// ----------------------------------------------------------------
 	// Ingestion
@@ -232,6 +241,7 @@ export function useVobEngine(
 		newMap.set(id, newItem);
 		registry.value = newMap;
 		registryVersion.value++;
+		mutationVersion.value++;
 
 		return id;
 	}
@@ -262,6 +272,7 @@ export function useVobEngine(
 		for (const id of toRemove) newMap.delete(id);
 		registry.value = newMap;
 		registryVersion.value++;
+		mutationVersion.value++;
 
 		return [...toRemove];
 	}
@@ -279,6 +290,7 @@ export function useVobEngine(
 		newMap.set(id, { ...item, ...updates } as VobItem);
 		registry.value = newMap;
 		registryVersion.value++;
+		mutationVersion.value++;
 
 		return true;
 	}
@@ -331,6 +343,7 @@ export function useVobEngine(
 		if (moved.length) {
 			registry.value = newMap;
 			registryVersion.value++;
+			mutationVersion.value++;
 		}
 
 		return moved;
@@ -352,6 +365,7 @@ export function useVobEngine(
 		registry,
 		rootIds,
 		registryVersion,
+		mutationVersion,
 		getItem,
 		getChildren,
 		getTypeDefinition,

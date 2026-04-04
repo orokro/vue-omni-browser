@@ -269,22 +269,16 @@ export function useDragDrop(
 				_dropCtx: unknown,
 				groupCtx: unknown[] | null,
 			) => {
-				// ── External drop ───────────────────────────────────────────────
-				const extCtx = dragCtx as Partial<VobExternalDropContext>;
-				if (extCtx?.item && !(dragCtx as VobDragContext)?.sourceInstanceId !== undefined) {
-					// Heuristic: VobDragContext has sourceInstanceId; VobExternalDropContext has item.type
-					// A cleaner check: if there's no selectedItems, treat as external.
-				}
-
-				// Check if this is a VOB internal drag
 				const vobCtx = dragCtx as Partial<VobDragContext>;
+
 				if (vobCtx?.selectedItems) {
 					// ── Internal VOB drag ─────────────────────────────────────────
-					// Collect all dragged IDs from the group (or fall back to primary item).
+					// groupCtx is the full PNP group array; each entry carries its
+					// own selectedItems (same array, so we deduplicate with Set).
 					const pnpGroup = groupCtx as (VobDragContext & { _isAnchor?: boolean })[] | null;
 					const idsToMove: string[] = pnpGroup
 						? [...new Set(pnpGroup.flatMap((g) => g.selectedItems.map((i) => i.id)))]
-						: vobCtx.selectedItems!.map((i) => i.id);
+						: vobCtx.selectedItems.map((i) => i.id);
 
 					engine.moveItems(idsToMove, targetId);
 					selection.clearSelection();
@@ -292,6 +286,7 @@ export function useDragDrop(
 				}
 
 				// ── External drop ─────────────────────────────────────────────
+				// No selectedItems → treat as an external context (VobExternalDropContext).
 				const externalCtx = dragCtx as VobExternalDropContext;
 				if (externalCtx?.item) {
 					engine.createItem({
