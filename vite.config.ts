@@ -29,11 +29,13 @@ export default defineConfig({
 		},
 	},
 	optimizeDeps: {
-		// Force pre-bundling of vue-pick-n-plop when installed.
-		// Its gdraghelper dependency is CJS-only (no exports field, no "type":"module"),
-		// so Vite's import-analysis fails on the mixed ESM→CJS chain unless the whole
-		// graph is pre-bundled into a single ESM chunk first.
-		include: hasPNP ? ['vue-pick-n-plop'] : [],
+		// Force pre-bundling for packages with CJS-only transitive dependencies.
+		// Without this Vite/rolldown's import-analysis fails on the mixed ESM→CJS chain.
+		include: [
+			...(hasPNP ? ['vue-pick-n-plop'] : []),
+			// vue-win-mgr: pre-bundle in case it ships CJS transitive deps
+			'vue-win-mgr',
+		],
 	},
 	build: {
 		// Library mode — emit ES module + CJS bundles and a type declaration entry.

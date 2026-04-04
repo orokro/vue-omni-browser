@@ -23,7 +23,8 @@
   "dependencies": {
     "material-icons": "^1.13.12",
     "vue": "^3.2.0",
-    "vue-virtual-scroller": "^2.0.0-beta.8"
+    "vue-virtual-scroller": "^2.0.0-beta.8",
+    "vue-win-mgr": "^0.9.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

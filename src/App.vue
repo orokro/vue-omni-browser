@@ -1,210 +1,230 @@
 <script setup lang="ts">
 /**
- * Development sandbox for VueOmniBrowser.
+ * App.vue — Multi-window demo (vue-win-mgr tiling layout)
+ * --------------------------------------------------------
+ * Demonstrates VueOmniBrowser inside a vue-win-mgr docking layout with five
+ * content windows arranged in a VS Code-style split view:
  *
- * Uses flat dataMode so that onDataChanged items (which are already flat
- * VobItem[]) can be fed straight back into :data, giving a clean round-trip:
+ *  ┌────────────────────────────┬────────────┐
+ *  │  Shared A  │  Shared B     │ Templates  │
+ *  │            (tabbed)        │            │
+ *  ├────────────────────────────┼────────────┤
+ *  │  Generated FS              │ Drop Target│
+ *  └────────────────────────────┴────────────┘
  *
- *   User action (move / rename / create / delete)
- *     → engine mutates internal registry
- *     → onDataChanged fires with the full flat item list
- *     → data ref updated
- *     → engine re-ingests — registry stays in sync
+ * Shared A and B share the same reactive data ref; mutations in either
+ * panel are immediately reflected in the other.
  *
- * In a real app you'd persist those items to your backend / store here.
- *
- * NOTE: the re-ingest triggered by updating :data does NOT cause an infinite
- * loop because VueOmniBrowser.vue watches the prop with { deep: false }
- * (shallow reference check). Once the prop reference stabilises the cycle stops.
+ * vue-win-mgr windows cannot receive props, so shared state is provided via
+ * provide() and injected in the panel wrapper components.
  */
 
-import { ref } from 'vue';
-import { VOB } from './constants';
-import type { VobConfig, VobDataSpec, VobFlatItemInput, VobItem, VobApi } from './types';
-import VueOmniBrowser from './components/VueOmniBrowser.vue';
+import { ref, provide } from 'vue';
+import { WindowManager, FRAME_STYLE } from 'vue-win-mgr';
+import type { AvailableWindow, LayoutFrame } from 'vue-win-mgr';
+import 'vue-win-mgr/dist/style.css';
+import 'material-icons/iconfont/material-icons.css';
+
+import type { VobDataSpec, VobFlatItemInput, VobItem } from './types';
+
+// Window components
+import SharedBrowserPanelA from './windows/wm/SharedBrowserPanelA.vue';
+import SharedBrowserPanelB from './windows/wm/SharedBrowserPanelB.vue';
+import FakerBrowserWindow  from './windows/FakerBrowserWindow.vue';
+import DropTargetWindow    from './windows/DropTargetWindow.vue';
+import TemplatesWindow     from './windows/TemplatesWindow.vue';
 
 // ----------------------------------------------------------------
-// DataSpec
+// Shared DataSpec
 // ----------------------------------------------------------------
 
-const dataSpec = ref<VobDataSpec>({
+const sharedDataSpec = ref<VobDataSpec>({
 	types: [
 		{
-			slug: 'folder',
-			label: 'Folder',
+			slug:        'folder',
+			label:       'Folder',
 			hasChildren: true,
-			metaKeys: ['name', 'createdAt'],
+			metaKeys:    ['name', 'createdAt'],
 		},
 		{
-			slug: 'file',
-			label: 'File',
+			slug:        'file',
+			label:       'File',
 			hasChildren: false,
-			metaKeys: ['name', 'size', 'createdAt'],
+			metaKeys:    ['name', 'size', 'createdAt'],
 		},
 	],
 });
 
 // ----------------------------------------------------------------
-// Flat initial data
+// Shared data (shared between panel A and panel B)
 // ----------------------------------------------------------------
 
-const data = ref<VobFlatItemInput[]>([
-	{ id: 'folder-assets',   type: 'folder', name: 'Assets',          parentId: null,            createdAt: '2024-01-01' },
-	{ id: 'folder-textures', type: 'folder', name: 'Textures',        parentId: 'folder-assets', createdAt: '2024-01-02' },
-	{ id: 'folder-audio',    type: 'folder', name: 'Audio',           parentId: 'folder-assets', createdAt: '2024-01-05' },
-	{ id: 'file-hero',       type: 'file',   name: 'hero.png',        parentId: 'folder-textures', size: '512KB',  createdAt: '2024-01-03' },
-	{ id: 'file-bg',         type: 'file',   name: 'background.png',  parentId: 'folder-textures', size: '2MB',    createdAt: '2024-01-04' },
-	{ id: 'file-ui',         type: 'file',   name: 'ui-atlas.png',    parentId: 'folder-textures', size: '1.2MB',  createdAt: '2024-01-05', hidden: true },
-	{ id: 'file-music',      type: 'file',   name: 'theme.ogg',       parentId: 'folder-audio',    size: '8MB',    createdAt: '2024-01-06' },
-	{ id: 'file-sfx',        type: 'file',   name: 'jump.wav',        parentId: 'folder-audio',    size: '24KB',   createdAt: '2024-01-07' },
-	{ id: 'file-readme',     type: 'file',   name: 'README.md',       parentId: 'folder-assets',   size: '4KB',    createdAt: '2024-01-08' },
-	{ id: 'folder-scenes',   type: 'folder', name: 'Scenes',          parentId: null,            createdAt: '2024-02-01' },
-	{ id: 'file-main',       type: 'file',   name: 'main.scene',      parentId: 'folder-scenes',   size: '64KB',   createdAt: '2024-02-02' },
-	{ id: 'file-menu',       type: 'file',   name: 'menu.scene',      parentId: 'folder-scenes',   size: '12KB',   createdAt: '2024-02-03' },
-	{ id: 'folder-scripts',  type: 'folder', name: 'Scripts',         parentId: null,            createdAt: '2024-03-01' },
-	{ id: 'file-player',     type: 'file',   name: 'Player.cs',       parentId: 'folder-scripts',  size: '8KB',    createdAt: '2024-03-02' },
-	{ id: 'file-enemy',      type: 'file',   name: 'Enemy.cs',        parentId: 'folder-scripts',  size: '6KB',    createdAt: '2024-03-03' },
+const sharedData = ref<VobFlatItemInput[]>([
+	{ id: 'folder-assets',   type: 'folder', name: 'Assets',         parentId: null,              createdAt: '2024-01-01' },
+	{ id: 'folder-textures', type: 'folder', name: 'Textures',       parentId: 'folder-assets',   createdAt: '2024-01-02' },
+	{ id: 'folder-audio',    type: 'folder', name: 'Audio',          parentId: 'folder-assets',   createdAt: '2024-01-05' },
+	{ id: 'file-hero',       type: 'file',   name: 'hero.png',       parentId: 'folder-textures', size: '512KB',  createdAt: '2024-01-03' },
+	{ id: 'file-bg',         type: 'file',   name: 'background.png', parentId: 'folder-textures', size: '2MB',    createdAt: '2024-01-04' },
+	{ id: 'file-music',      type: 'file',   name: 'theme.ogg',      parentId: 'folder-audio',    size: '8MB',    createdAt: '2024-01-06' },
+	{ id: 'file-sfx',        type: 'file',   name: 'jump.wav',       parentId: 'folder-audio',    size: '24KB',   createdAt: '2024-01-07' },
+	{ id: 'file-readme',     type: 'file',   name: 'README.md',      parentId: 'folder-assets',   size: '4KB',    createdAt: '2024-01-08' },
+	{ id: 'folder-scenes',   type: 'folder', name: 'Scenes',         parentId: null,              createdAt: '2024-02-01' },
+	{ id: 'file-main',       type: 'file',   name: 'main.scene',     parentId: 'folder-scenes',   size: '64KB',   createdAt: '2024-02-02' },
+	{ id: 'file-menu',       type: 'file',   name: 'menu.scene',     parentId: 'folder-scenes',   size: '12KB',   createdAt: '2024-02-03' },
+	{ id: 'folder-scripts',  type: 'folder', name: 'Scripts',        parentId: null,              createdAt: '2024-03-01' },
+	{ id: 'file-player',     type: 'file',   name: 'Player.cs',      parentId: 'folder-scripts',  size: '8KB',    createdAt: '2024-03-02' },
+	{ id: 'file-enemy',      type: 'file',   name: 'Enemy.cs',       parentId: 'folder-scripts',  size: '6KB',    createdAt: '2024-03-03' },
 ]);
 
+/**
+ * Keeps sharedData in sync when either panel mutates internal state.
+ * @param items - Updated flat item list from the engine.
+ */
+function handleSharedDataChanged(items: VobItem[]): void {
+	sharedData.value = items as VobFlatItemInput[];
+}
+
 // ----------------------------------------------------------------
-// Config
+// Provide shared browser context (injected by the panel wrappers)
 // ----------------------------------------------------------------
 
-const config = ref<VobConfig>({
-	multiSelect: true,
-	readOnly: false,
-	showHidden: false,
-	dataMode: VOB.DATA_MODE.FLAT,
-	enableMaterialIcons: true,
-	virtualRoot: 'MyProject',
-	rows: [
-		{
-			type: VOB.ROWS.NAV_BAR,
-			buttons: [
-				VOB.BUTTONS.BACK,
-				VOB.BUTTONS.FORWARD,
-				VOB.BUTTONS.UP,
-				VOB.SEPARATOR,
-				VOB.BUTTONS.REFRESH,
-			],
-		},
-		{
-			type: VOB.ROWS.BUTTONS_BAR,
-			buttons: [
-				VOB.BUTTONS.NEW_FOLDER,
-				VOB.SEPARATOR,
-				VOB.BUTTONS.CUT,
-				VOB.BUTTONS.COPY,
-				VOB.BUTTONS.PASTE,
-				VOB.SEPARATOR,
-				VOB.BUTTONS.RENAME,
-				VOB.BUTTONS.DELETE,
-			],
-			viewModeSettings: {
-				availableViewModes: [
-					VOB.VIEW_MODES.LIST,
-					VOB.VIEW_MODES.DETAILS,
-					VOB.VIEW_MODES.ICONS,
-					VOB.VIEW_MODES.TREE,
-					VOB.VIEW_MODES.COLUMNS,
-				],
-				defaultViewMode: VOB.VIEW_MODES.DETAILS,
-			},
-		},
-		{ type: VOB.ROWS.CONTENT },
-		{
-			type: VOB.ROWS.STATUS_BAR,
-			statusProvider: (ctx) =>
-				ctx.selectedItems.length > 0
-					? `${ctx.selectedItems.length} item(s) selected`
-					: `${ctx.currentItems.length} item(s) in folder`,
-		},
-	],
-	onOpen: (item, _api) => {
-		console.log('[onOpen]', item.name, item.type);
-	},
+provide('sharedBrowserCtx', {
+	get data()          { return sharedData.value; },
+	get dataSpec()      { return sharedDataSpec.value; },
+	onDataChanged: handleSharedDataChanged,
 });
 
 // ----------------------------------------------------------------
-// Programmatic API access via template ref
+// Available windows
 // ----------------------------------------------------------------
 
-const browserRef = ref<VobApi | null>(null);
+const availableWindows: AvailableWindow[] = [
+	{
+		window: SharedBrowserPanelA,
+		title:  'Shared Browser A',
+		slug:   'shared-a',
+	},
+	{
+		window: SharedBrowserPanelB,
+		title:  'Shared Browser B',
+		slug:   'shared-b',
+	},
+	{
+		window: FakerBrowserWindow,
+		title:  'Generated FS',
+		slug:   'generated',
+	},
+	{
+		window: DropTargetWindow,
+		title:  'Drop Target',
+		slug:   'drop-target',
+	},
+	{
+		window: TemplatesWindow,
+		title:  'Templates',
+		slug:   'templates',
+	},
+];
 
 // ----------------------------------------------------------------
-// Data changed handler
+// Layout  (coordinates in a virtual 1920×1080 space)
+//
+//  ┌──────────────────────┬──────────┐
+//  │  main (A + B tabbed) │ sidebar  │
+//  │                      │ (tmpl +  │
+//  ├──────────────────────┤  drop)   │
+//  │  generated FS        │          │
+//  └──────────────────────┴──────────┘
 // ----------------------------------------------------------------
 
-/**
- * Feed the updated flat item list back into :data so the browser's internal
- * state and the parent's data ref stay in sync. In production you'd also
- * persist these to your backend or store here.
- */
-function handleDataChanged(items: VobItem[]): void {
-	data.value = items as VobFlatItemInput[];
-	console.log('[dataChanged]', items.length, 'items');
-}
+const layout: LayoutFrame[] = [
+	// Root viewport sentinel
+	{
+		name:   'window',
+		top:    0,
+		left:   0,
+		bottom: 1080,
+		right:  1920,
+	},
+	// Top-left: the two shared browsers as tabs
+	{
+		name:    'main',
+		windows: ['shared-a', 'shared-b'],
+		style:   FRAME_STYLE.TABBED,
+		top:     0,
+		left:    0,
+		right:   ['ref', 'window.right-460'],
+		bottom:  ['ref', 'window.bottom-320'],
+	},
+	// Bottom-left: generated file system browser
+	{
+		name:    'generated',
+		windows: ['generated'],
+		style:   FRAME_STYLE.TABBED,
+		top:     ['ref', 'main.bottom'],
+		left:    0,
+		right:   ['ref', 'main.right'],
+		bottom:  ['ref', 'window.bottom'],
+	},
+	// Right column top: templates palette
+	{
+		name:    'sidebar-top',
+		windows: ['templates'],
+		style:   FRAME_STYLE.TABBED,
+		top:     0,
+		left:    ['ref', 'main.right'],
+		right:   ['ref', 'window.right'],
+		bottom:  ['ref', 'window.top+560'],
+	},
+	// Right column bottom: drop target
+	{
+		name:    'sidebar-bottom',
+		windows: ['drop-target'],
+		style:   FRAME_STYLE.TABBED,
+		top:     ['ref', 'sidebar-top.bottom'],
+		left:    ['ref', 'main.right'],
+		right:   ['ref', 'window.right'],
+		bottom:  ['ref', 'window.bottom'],
+	},
+];
 </script>
 
 <template>
-	<div style="
-		width: 90vw;
-		height: 90vh;
-		display: flex;
-		flex-direction: column;
-		background: #111;
-		padding: 0;
-		margin: 0;
-		overflow: hidden;
-	">
-		<!-- Sandbox toolbar -->
-		<div style="
-			display: flex;
-			gap: 8px;
-			align-items: center;
-			padding: 6px 12px;
-			background: #1a1a1a;
-			border-bottom: 1px solid #333;
-			font-family: monospace;
-			font-size: 12px;
-			color: #aaa;
-			flex-shrink: 0;
-		">
-			<strong style="color: #e94560;">VueOmniBrowser</strong>
-			<span style="color: #555;">sandbox</span>
-
-			<button
-				style="margin-left: auto; padding: 2px 8px; font-size: 11px; cursor: pointer;"
-				@click="config.showHidden = !config.showHidden"
-			>
-				{{ config.showHidden ? 'Hide' : 'Show' }} hidden
-			</button>
-			<button
-				style="padding: 2px 8px; font-size: 11px; cursor: pointer;"
-				@click="config.readOnly = !config.readOnly"
-			>
-				{{ config.readOnly ? 'Disable' : 'Enable' }} read-only
-			</button>
-			<button
-				style="padding: 2px 8px; font-size: 11px; cursor: pointer;"
-				@click="browserRef?.navigateTo('folder-textures')"
-			>
-				API: Go to Textures
-			</button>
-		</div>
-
-		<!-- Component -->
-		<div style="flex: 1; min-height: 0; overflow: hidden;">
-			<VueOmniBrowser
-				ref="browserRef"
-				:config="config"
-				:data-spec="dataSpec"
-				:data="data"
-				theme="dark"
-				style="height: 100%;"
-				@navigate="(_ids, path) => console.log('[navigate]', path)"
-				@on-data-changed="handleDataChanged"
-			/>
-		</div>
-	</div>
+	<main class="demo-root" @contextmenu.prevent>
+		<WindowManager
+			:available-windows="availableWindows"
+			:default-layout="layout"
+			:show-top-bar="false"
+			:show-status-bar="false"
+			:split-merge-handles="true"
+			:theme="{
+				frameTabsActiveColor: 'rgb(105, 105, 105)',
+			}"
+		/>
+	</main>
 </template>
+
+<style lang="scss">
+/* Global resets for the demo */
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin:  0;
+	padding: 0;
+	width:   100vw;
+	height:  100vh;
+	overflow: hidden;
+	background: #0d1117;
+}
+</style>
+
+<style scoped lang="scss">
+.demo-root {
+	width:  100vw;
+	height: 100vh;
+	overflow: hidden;
+}
+</style>
