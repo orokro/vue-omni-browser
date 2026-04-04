@@ -7,11 +7,19 @@
  *
  * Usage in a multi-window demo: mount two of these pointing to the same
  * reactive `data` ref and connect `@on-data-changed` to keep them in sync.
+ * Set the same `dataSourceKey` on both so cross-instance drags are treated
+ * as moves rather than external drops.
  */
 
-import { ref } from 'vue';
+import { computed } from 'vue';
 import { VOB } from '../constants';
-import type { VobConfig, VobDataSpec, VobFlatItemInput, VobItem } from '../types';
+import type {
+	VobConfig,
+	VobDataSpec,
+	VobFlatItemInput,
+	VobItem,
+	VobExternalDropContext,
+} from '../types';
 import VueOmniBrowser from '../components/VueOmniBrowser.vue';
 
 // ----------------------------------------------------------------
@@ -27,11 +35,18 @@ interface Props {
 	label?: string;
 	/** Instance ID forwarded to VueOmniBrowser for drag origin tracking. */
 	instanceId?: string;
+	/**
+	 * Groups this instance with others that share the same data.
+	 * Drops from an instance with the same key are treated as moves;
+	 * drops from different keys go to onExternalDrop.
+	 */
+	dataSourceKey?: string;
 }
 
-withDefaults(defineProps<Props>(), {
-	label:      'Shared Browser',
-	instanceId: undefined,
+const props = withDefaults(defineProps<Props>(), {
+	label:         'Shared Browser',
+	instanceId:    undefined,
+	dataSourceKey: undefined,
 });
 
 const emit = defineEmits<{
@@ -40,16 +55,32 @@ const emit = defineEmits<{
 }>();
 
 // ----------------------------------------------------------------
-// Config
+// Config — computed so dataSourceKey from props is always current
 // ----------------------------------------------------------------
 
-const config = ref<VobConfig>({
+const config = computed<VobConfig>(() => ({
 	multiSelect:         true,
 	readOnly:            false,
 	showHidden:          false,
 	dataMode:            VOB.DATA_MODE.FLAT,
 	enableMaterialIcons: true,
 	virtualRoot:         'Project',
+	dataSourceKey:       props.dataSourceKey,
+
+	/**
+	 * Handle foreign drops (templates palette, other data sources, etc.).
+	 * Interprets the ctx as a VobExternalDropContext to create a new item.
+	 */
+	onExternalDrop(dragCtx, api, dropCtx) {
+		const extCtx = dragCtx as Partial<VobExternalDropContext>;
+		if (extCtx?.item) {
+			api.createItem({
+				...(extCtx.item as Omit<VobItem, 'id'>),
+				parentId: dropCtx.targetFolderId,
+			});
+		}
+	},
+
 	rows: [
 		{
 			type:    VOB.ROWS.NAV_BAR,
@@ -93,7 +124,7 @@ const config = ref<VobConfig>({
 					: `${ctx.currentItems.length} item(s)`,
 		},
 	],
-});
+}));
 
 // ----------------------------------------------------------------
 // Handlers

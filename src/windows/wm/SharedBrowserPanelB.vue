@@ -17,6 +17,8 @@ interface SharedBrowserCtx {
 	data:          VobFlatItemInput[];
 	dataSpec:      VobDataSpec;
 	onDataChanged: (items: VobItem[]) => void;
+	/** Shared key so both panels treat each other's drags as same-source moves. */
+	dataSourceKey: string;
 }
 
 const ctx = inject<SharedBrowserCtx>('sharedBrowserCtx');
@@ -29,6 +31,7 @@ const ctx = inject<SharedBrowserCtx>('sharedBrowserCtx');
 		instance-id="shared-b"
 		:data="ctx.data"
 		:data-spec="ctx.dataSpec"
+		:data-source-key="ctx.dataSourceKey"
 		@data-changed="ctx.onDataChanged"
 	/>
 	<div v-else class="panel-error">No shared context injected.</div>

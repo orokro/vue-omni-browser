@@ -2,55 +2,52 @@
  * @file core/useDragDrop.ts
  * @description Drag-and-drop state for VueOmniBrowser (vue-pick-n-plop integration).
  *
- * This composable is only active when vue-pick-n-plop is installed as a peer
- * dependency and `config.drag` is not disabled.  If PNP is not available it
- * no-ops gracefully so the browser continues to work without drag-and-drop.
+ * ── Drop routing ────────────────────────────────────────────────────────────
  *
- * ── What this composable owns ───────────────────────────────────────────────
+ * Every drop that lands on a VOB dropzone is classified as one of two kinds:
  *
- *  draggableOpts(item)
- *    Returns the v-pnp-draggable binding for a given VobItem.  Passes the full
- *    selection as groupCtx so multi-item drags work transparently.
+ *  SAME-SOURCE  — the drag originated from an instance with the same
+ *                 `config.dataSourceKey`, or from *this exact instance*.
+ *                 Result: engine.moveItems() (or config.onMove if hooked).
  *
- *  dropzoneOpts(folderId)
- *    Returns the v-pnp-dropzone binding for a folder row or the current-folder
- *    background.  Handles:
- *      • intra-browser moves (vob:item / vob:folder → same browser instance)
- *      • inter-browser moves (vob:item / vob:folder → different instance)
- *      • external drops (vob:external → creates a new item from VobExternalDropContext)
- *
- *  isDraggingItem(itemId)
- *    Returns true while this specific item (or any co-selected item) is being
- *    dragged.  Used by view components to apply an opacity class to the origin.
- *
- *  isDragging
- *    Reactive boolean — true whenever any PNP drag is in progress.
+ *  FOREIGN      — anything else:
+ *                 • Different / absent dataSourceKey
+ *                 • Non-VOB draggable (templates palette, ThreeJS outliner, …)
+ *                 Result: config.onExternalDrop() if provided, otherwise no-op.
  *
  * ── Key namespacing ─────────────────────────────────────────────────────────
  *
- *  VOB.DRAG.KEYS.ITEM   ('vob:item')   — leaf items
- *  VOB.DRAG.KEYS.FOLDER ('vob:folder') — container items
- *  VOB.DRAG.KEYS.ANY    ('vob:item|vob:folder') — any VOB item (used on dropzones)
- *  VOB.DRAG.KEYS.EXTERNAL ('vob:external') — drops from outside the browser
+ *  VOB.DRAG.KEYS.ITEM     ('vob:item')           — leaf items
+ *  VOB.DRAG.KEYS.FOLDER   ('vob:folder')          — container items
+ *  VOB.DRAG.KEYS.ANY      ('vob:item|vob:folder') — any VOB item (used on dropzones)
+ *  VOB.DRAG.KEYS.EXTERNAL ('vob:external')        — external templates pattern
+ *  config.dropKeys        — extra keys for custom PNP draggables
  *
  * ── Cycle prevention ────────────────────────────────────────────────────────
- *  The `validate` function on every folder dropzone rejects drops where the
- *  dragged items include the folder itself or any of its ancestors, preventing
- *  cycles.  Engine.moveItems() also performs cycle-detection as a safety net.
+ *  The `validate` function on every folder dropzone rejects same-source drops
+ *  where the dragged items include the folder itself or any of its ancestors.
+ *  engine.moveItems() performs a second cycle-check as a safety net.
  *
  * Injection key: VOB_DRAG_DROP_KEY
  */
 
 import { type Ref } from 'vue';
 import { usePNPDragging } from 'vue-pick-n-plop';
-import type { VobItem, VobConfig, VobDataSpec, VobDragContext, VobExternalDropContext } from '../types';
+import type {
+	VobItem,
+	VobConfig,
+	VobDataSpec,
+	VobDragContext,
+	VobDropContext,
+	VobApi,
+} from '../types';
 import type { VobEngine } from './useVobEngine';
 import type { VobNavigation } from './useNavigation';
 import type { VobSelection } from './useSelection';
 import { VOB } from '../constants';
 
 // ----------------------------------------------------------------
-// Types
+// Public interface
 // ----------------------------------------------------------------
 
 export interface VobDragDropState {
@@ -67,7 +64,7 @@ export interface VobDragDropState {
 	 *  - Pass a `string | null` to target a specific folder by ID (or root).
 	 *    Use this for background / whole-area drop zones.
 	 *  - Pass a `VobItem` to target an item row. Returns `{}` (no-op) for
-	 *    leaf items so only container-type rows become drop targets.
+	 *    leaf items so only container-type rows become active drop targets.
 	 */
 	dropzoneOpts: (folderIdOrItem: string | null | VobItem) => object;
 
@@ -80,7 +77,6 @@ export interface VobDragDropState {
 	/**
 	 * Returns true if the given item ID is currently being dragged
 	 * (either as the primary item or as part of a multi-select group).
-	 * Used by view components to apply the dragging-origin opacity style.
 	 */
 	isDraggingItem: (itemId: string) => boolean;
 }
@@ -93,46 +89,57 @@ export interface VobDragDropState {
  * Creates and returns the drag-and-drop state for a VueOmniBrowser instance.
  *
  * @param engine      - Engine for item lookup, move, create.
- * @param navigation  - Navigation state (current path).
+ * @param navigation  - Navigation state (used to populate VobDropContext.currentPathIds).
  * @param selection   - Selection state (selected IDs / items).
  * @param config      - Reactive config ref.
  * @param _dataSpec   - Reactive dataSpec ref (reserved for future use).
- * @param instanceId  - Unique ID for this browser instance (used in VobDragContext).
+ * @param instanceId  - Unique ID for this browser instance.
+ * @param getApi      - Lazy getter that returns the VobApi for this instance.
+ *                      Must be a getter (not the value) to avoid a circular
+ *                      reference during component setup.
  */
 export function useDragDrop(
-	engine: VobEngine,
-	_navigation: VobNavigation,
-	selection: VobSelection,
-	config: Ref<VobConfig>,
-	_dataSpec: Ref<VobDataSpec>,
+	engine:     VobEngine,
+	navigation: VobNavigation,
+	selection:  VobSelection,
+	config:     Ref<VobConfig>,
+	_dataSpec:  Ref<VobDataSpec>,
 	instanceId: string | undefined,
+	getApi:     () => VobApi,
 ): VobDragDropState {
 
 	// ----------------------------------------------------------------
 	// PNP manager
-	// Resolves to the real PNP singleton when vue-pick-n-plop is installed,
-	// or the inert stub manager when it is not (via the vite.config alias).
-	// usePNPDragging() is an inject()-based composable and must be called
-	// here (inside setup) rather than at module scope.
 	// ----------------------------------------------------------------
 
-	const manager = usePNPDragging();
-
-	/** Reactive isDragging from the PNP manager (or always-false from the stub). */
+	const manager   = usePNPDragging();
 	const isDragging = manager.isDragging as Ref<boolean>;
 
 	// ----------------------------------------------------------------
-	// Helpers
+	// Key helpers
 	// ----------------------------------------------------------------
 
 	/**
-	 * Derives the PNP key string for a VobItem based on whether its type
-	 * is a container (hasChildren) or a leaf.
+	 * Derives the PNP key string for a VobItem based on its type definition.
 	 */
 	function keyForItem(item: VobItem): string {
 		const def = engine.getTypeDefinition(item.type);
 		return def?.hasChildren ? VOB.DRAG.KEYS.FOLDER : VOB.DRAG.KEYS.ITEM;
 	}
+
+	/**
+	 * Builds the complete key string for a dropzone, merging built-in VOB
+	 * keys with any extra keys from config.dropKeys.
+	 */
+	function dropzoneKeys(): string {
+		const base  = `${VOB.DRAG.KEYS.ANY}|${VOB.DRAG.KEYS.EXTERNAL}`;
+		const extra = config.value.dropKeys?.join('|');
+		return extra ? `${base}|${extra}` : base;
+	}
+
+	// ----------------------------------------------------------------
+	// Drag group helpers
+	// ----------------------------------------------------------------
 
 	/**
 	 * Returns a deduplicated array of all VobItems in the current drag group.
@@ -141,10 +148,7 @@ export function useDragDrop(
 	 * primary item (drag of an unselected item).
 	 */
 	function dragGroup(item: VobItem): VobItem[] {
-		if (selection.isSelected(item.id)) {
-			return selection.selectedItems.value;
-		}
-		return [item];
+		return selection.isSelected(item.id) ? selection.selectedItems.value : [item];
 	}
 
 	/**
@@ -153,19 +157,60 @@ export function useDragDrop(
 	function buildDragCtx(item: VobItem): VobDragContext {
 		return {
 			item,
-			selectedItems: dragGroup(item),
+			selectedItems:    dragGroup(item),
 			sourceInstanceId: instanceId,
+			dataSourceKey:    config.value.dataSourceKey,
 		};
 	}
 
+	// ----------------------------------------------------------------
+	// Source-identity helpers
+	// ----------------------------------------------------------------
+
 	/**
-	 * Returns true if moving itemIds into targetFolderId would create a cycle.
-	 * (i.e. targetFolderId is one of the dragged items or their descendants.)
+	 * Returns true when the drag came from *this exact instance*.
+	 */
+	function isSameInstance(vobCtx: VobDragContext): boolean {
+		return instanceId !== undefined && vobCtx.sourceInstanceId === instanceId;
+	}
+
+	/**
+	 * Returns true when both this instance and the drag source have the same
+	 * non-empty dataSourceKey — meaning they share a common data set.
+	 */
+	function isSameSource(vobCtx: VobDragContext): boolean {
+		const myKey   = config.value.dataSourceKey;
+		const their   = vobCtx.dataSourceKey;
+		return !!(myKey && their && myKey === their);
+	}
+
+	// ----------------------------------------------------------------
+	// Drop context builder
+	// ----------------------------------------------------------------
+
+	/**
+	 * Builds a VobDropContext from a target folder ID.
+	 * @param targetFolderId - The folder ID the item was dropped into (null = root).
+	 */
+	function buildDropCtx(targetFolderId: string | null): VobDropContext {
+		return {
+			targetFolderId,
+			targetItem:   targetFolderId ? (engine.getItem(targetFolderId) ?? null) : null,
+			currentPathIds: [...navigation.currentPathIds.value],
+		};
+	}
+
+	// ----------------------------------------------------------------
+	// Cycle detection
+	// ----------------------------------------------------------------
+
+	/**
+	 * Returns true if moving itemIds into targetFolderId would create a cycle
+	 * (i.e. targetFolderId is one of the dragged items or their descendants).
 	 */
 	function wouldCycle(itemIds: string[], targetFolderId: string): boolean {
 		for (const id of itemIds) {
 			if (id === targetFolderId) return true;
-			// Walk descendants of this item and check if target is among them.
 			const stack = [id];
 			while (stack.length) {
 				const current = stack.pop()!;
@@ -188,29 +233,23 @@ export function useDragDrop(
 	 * Returns the v-pnp-draggable binding for a given item row.
 	 */
 	function draggableOpts(item: VobItem): object {
-		if (config.value.readOnly) {
-			return {};
-		}
+		if (config.value.readOnly) return {};
 
-		const group  = dragGroup(item);
-		const ctx    = buildDragCtx(item);
-
-		/**
-		 * PNP groupCtx: the full selection array enriched with _isAnchor so
-		 * custom ghost components can identify the primary item.
-		 */
-		const groupCtx: (VobDragContext & { _isAnchor: boolean })[] = group.map((g) => ({
-			item: g,
-			selectedItems: group,
+		const group    = dragGroup(item);
+		const ctx      = buildDragCtx(item);
+		const groupCtx = group.map((g) => ({
+			item:             g,
+			selectedItems:    group,
 			sourceInstanceId: instanceId,
-			_isAnchor: g.id === item.id,
+			dataSourceKey:    config.value.dataSourceKey,
+			_isAnchor:        g.id === item.id,
 		}));
 
 		return {
-			keys:  keyForItem(item),
+			keys:          keyForItem(item),
 			ctx,
 			groupCtx,
-			dragItem: 'clone' as const,
+			dragItem:      'clone' as const,
 			dragThreshold: 5,
 		};
 	}
@@ -227,14 +266,11 @@ export function useDragDrop(
 	 *   rows become active drop targets.
 	 */
 	function dropzoneOpts(folderIdOrItem: string | null | VobItem): object {
-		if (config.value.readOnly) {
-			return {};
-		}
+		if (config.value.readOnly) return {};
 
 		let targetId: string | null;
 
 		if (folderIdOrItem !== null && typeof folderIdOrItem === 'object') {
-			// VobItem — only containers are valid drop targets.
 			const def = engine.getTypeDefinition(folderIdOrItem.type);
 			if (!def?.hasChildren) return {};
 			targetId = folderIdOrItem.id;
@@ -243,20 +279,23 @@ export function useDragDrop(
 		}
 
 		return {
-			// Accept any VOB item OR an external drop.
-			keys: `${VOB.DRAG.KEYS.ANY}|${VOB.DRAG.KEYS.EXTERNAL}`,
-			ctx: { folderId: targetId },
+			keys: dropzoneKeys(),
+			ctx:  { folderId: targetId },
 
 			/**
-			 * Reject drops that would create cycles.
-			 * This runs for every valid key match before the hover state is applied.
+			 * Reject same-source drops that would create folder cycles.
+			 * Foreign drops are always structurally valid (we won't move anything).
 			 */
 			validate: (dragCtx: unknown) => {
-				// External drops are always structurally valid.
-				if (!(dragCtx as VobDragContext)?.item) return true;
-				if (targetId === null) return true;
+				const vobCtx = dragCtx as Partial<VobDragContext>;
+				if (!vobCtx?.selectedItems) return true; // non-VOB drag — always pass
+				if (targetId === null) return true;      // root drop — always pass
 
-				const vobCtx = dragCtx as VobDragContext;
+				// Only cycle-check if the drop would actually be a same-source move.
+				if (!isSameInstance(vobCtx as VobDragContext) && !isSameSource(vobCtx as VobDragContext)) {
+					return true;
+				}
+
 				const dragIds = vobCtx.selectedItems.map((i) => i.id);
 				return !wouldCycle(dragIds, targetId);
 			},
@@ -265,35 +304,44 @@ export function useDragDrop(
 			 * Handle a successful drop onto this folder zone.
 			 */
 			onDropped: (
-				dragCtx: unknown,
+				dragCtx:  unknown,
 				_dropCtx: unknown,
 				groupCtx: unknown[] | null,
 			) => {
 				const vobCtx = dragCtx as Partial<VobDragContext>;
 
+				// ── VOB drag ─────────────────────────────────────────────────────
 				if (vobCtx?.selectedItems) {
-					// ── Internal VOB drag ─────────────────────────────────────────
-					// groupCtx is the full PNP group array; each entry carries its
-					// own selectedItems (same array, so we deduplicate with Set).
-					const pnpGroup = groupCtx as (VobDragContext & { _isAnchor?: boolean })[] | null;
-					const idsToMove: string[] = pnpGroup
-						? [...new Set(pnpGroup.flatMap((g) => g.selectedItems.map((i) => i.id)))]
-						: vobCtx.selectedItems.map((i) => i.id);
+					const isOurs = isSameInstance(vobCtx as VobDragContext) || isSameSource(vobCtx as VobDragContext);
 
-					engine.moveItems(idsToMove, targetId);
-					selection.clearSelection();
+					if (isOurs) {
+						// Same data source → move (or delegate to onMove hook).
+						const pnpGroup = groupCtx as (VobDragContext & { _isAnchor?: boolean })[] | null;
+						const idsToMove: string[] = pnpGroup
+							? [...new Set(pnpGroup.flatMap((g) => g.selectedItems.map((i) => i.id)))]
+							: (vobCtx as VobDragContext).selectedItems.map((i) => i.id);
+
+						const onMove = config.value.onMove;
+						if (onMove) {
+							const items = idsToMove
+								.map((id) => engine.getItem(id))
+								.filter((i): i is VobItem => i !== undefined);
+							onMove(items, targetId, getApi());
+						} else {
+							engine.moveItems(idsToMove, targetId);
+						}
+
+						selection.clearSelection();
+						return;
+					}
+
+					// Cross-source VOB drag → treat as external.
+					config.value.onExternalDrop?.(dragCtx, getApi(), buildDropCtx(targetId));
 					return;
 				}
 
-				// ── External drop ─────────────────────────────────────────────
-				// No selectedItems → treat as an external context (VobExternalDropContext).
-				const externalCtx = dragCtx as VobExternalDropContext;
-				if (externalCtx?.item) {
-					engine.createItem({
-						...externalCtx.item,
-						parentId: targetId,
-					} as Omit<VobItem, 'id'>);
-				}
+				// ── Non-VOB drag (templates, custom PNP, etc.) ───────────────────
+				config.value.onExternalDrop?.(dragCtx, getApi(), buildDropCtx(targetId));
 			},
 		};
 	}
@@ -309,8 +357,7 @@ export function useDragDrop(
 		if (!isDragging.value) return false;
 		const active = manager.activeDrag;
 		const vobCtx = active.ctx as Partial<VobDragContext>;
-		if (vobCtx?.selectedItems?.some((i) => i.id === itemId)) return true;
-		return false;
+		return vobCtx?.selectedItems?.some((i) => i.id === itemId) ?? false;
 	}
 
 	// ----------------------------------------------------------------

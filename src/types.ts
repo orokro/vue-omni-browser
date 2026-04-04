@@ -348,6 +348,98 @@ export interface VobConfig {
 	 * @param api  - The public VueOmniBrowser API, giving access to navigation etc.
 	 */
 	onOpen?: (item: VobItem, api: VobApi) => void;
+
+	// ── Drag-and-drop integration ─────────────────────────────────────────────
+
+	/**
+	 * Groups this instance with other VueOmniBrowser instances that share the
+	 * same underlying data.
+	 *
+	 * When an item is dragged from an instance with the **same** `dataSourceKey`,
+	 * the browser treats it as an internal drag and performs a move operation
+	 * (or calls `onMove` if provided).
+	 *
+	 * When the keys differ — or either side has no key — the drop is treated as
+	 * foreign and routed to `onExternalDrop`.
+	 *
+	 * @example
+	 * // Two browsers sharing a project folder:
+	 * config: { dataSourceKey: 'project-fs', ... }
+	 */
+	dataSourceKey?: string;
+
+	/**
+	 * Additional PNP drag keys accepted by this browser's drop zones, beyond the
+	 * built-in VOB keys (`vob:item`, `vob:folder`, `vob:external`).
+	 *
+	 * Use this when you want to accept drags from non-VOB sources (custom PNP
+	 * draggables, ThreeJS scene outliners, colour pickers, etc.).  All such drops
+	 * are routed to `onExternalDrop` — the browser never tries to auto-handle them.
+	 *
+	 * @example
+	 * dropKeys: ['threejs:mesh', 'threejs:material', 'threejs:texture']
+	 */
+	dropKeys?: string[];
+
+	/**
+	 * Called when an item from a **foreign** source is dropped onto this browser.
+	 *
+	 * "Foreign" means any of:
+	 * - A different `dataSourceKey` (independent file browser, different data set).
+	 * - No `dataSourceKey` on either side (two unrelated instances).
+	 * - A non-VOB PNP draggable (templates palette, ThreeJS outliner, colour picker, …).
+	 *
+	 * The browser makes **no internal state change** when this hook is provided —
+	 * the callback is solely responsible for deciding what happens.  Call
+	 * `api.createItem(...)` to add an item, `api.navigateTo(...)` to change the
+	 * view, perform an async disk write, open a dialog — whatever your app needs.
+	 *
+	 * @param dragCtx  Raw PNP drag context.  Cast to the expected shape:
+	 *                 - `VobDragContext` when the drag comes from another VOB instance.
+	 *                 - `VobExternalDropContext` when using the templates pattern.
+	 *                 - Your own type for fully custom draggables.
+	 * @param api      The `VobApi` for this instance (`createItem`, `navigateTo`, …).
+	 * @param dropCtx  Drop location: target folder ID, hovered item, current path.
+	 *
+	 * @example
+	 * onExternalDrop(dragCtx, api, dropCtx) {
+	 *   const ext = dragCtx as VobExternalDropContext;
+	 *   if (ext?.item) api.createItem({ ...ext.item, parentId: dropCtx.targetFolderId });
+	 * }
+	 */
+	onExternalDrop?: (dragCtx: unknown, api: VobApi, dropCtx: VobDropContext) => void;
+
+	// ── Mutation interception ─────────────────────────────────────────────────
+	// When any of the hooks below is provided, the browser does NOT perform the
+	// corresponding internal state change — the callback owns the outcome.
+	// Update the :data prop to reflect the change in the UI.
+	//
+	// When the hook is absent, the browser mutates its internal registry and
+	// emits `onDataChanged` as usual (uncontrolled / in-memory mode).
+
+	/**
+	 * Called when items are moved (drag-drop, paste-as-move).
+	 * Return nothing; update :data yourself to confirm the move.
+	 */
+	onMove?: (items: VobItem[], targetFolderId: string | null, api: VobApi) => void;
+
+	/**
+	 * Called when items are deleted (Delete key, context menu).
+	 * Return nothing; update :data yourself to confirm the deletion.
+	 */
+	onDelete?: (items: VobItem[], api: VobApi) => void;
+
+	/**
+	 * Called when a single item is renamed (inline rename, context menu Rename).
+	 * Return nothing; update :data yourself to confirm the rename.
+	 */
+	onRename?: (item: VobItem, newName: string, api: VobApi) => void;
+
+	/**
+	 * Called when a new item is created (toolbar New Folder, context menu, etc.).
+	 * Return nothing; update :data yourself to confirm the creation.
+	 */
+	onCreate?: (type: string, name: string, parentId: string | null, api: VobApi) => void;
 }
 
 // ================================================================
@@ -478,14 +570,20 @@ export interface VobDragContext {
 	 * Useful when multiple browser instances share the same page.
 	 */
 	sourceInstanceId: string | undefined;
+	/**
+	 * The `config.dataSourceKey` of the source instance.
+	 * Receiving browsers compare this against their own key to decide whether
+	 * to treat the drop as a same-source move or a foreign drop.
+	 */
+	dataSourceKey?: string;
 }
 
 /**
  * The data payload an external draggable must provide when dropping INTO
  * a VueOmniBrowser instance (keys: VOB.DRAG.KEYS.EXTERNAL).
  *
- * The browser will call engine.createItem() with the supplied data, placing
- * the new item in the folder that was hovered at drop time.
+ * Pass this as `ctx` on a v-pnp-draggable and handle it in `config.onExternalDrop`.
+ * The browser makes no automatic state changes for external drops.
  */
 export interface VobExternalDropContext {
 	/**
@@ -493,4 +591,27 @@ export interface VobExternalDropContext {
 	 * if omitted.  `parentId` is ignored (the browser sets it from the drop target).
 	 */
 	item: Omit<VobItemInput, 'id'> & { id?: string };
+}
+
+/**
+ * Describes where in the browser an external item was dropped.
+ * Passed as the third argument to `config.onExternalDrop`.
+ */
+export interface VobDropContext {
+	/**
+	 * The folder ID the item was dropped into.
+	 * `null` means the item landed at the root level.
+	 */
+	targetFolderId: string | null;
+	/**
+	 * The specific VobItem hovered at the moment of the drop, if any.
+	 * This is the container row the user dropped onto.
+	 * Will be `null` for background / root-level drops.
+	 */
+	targetItem: VobItem | null;
+	/**
+	 * The current navigation path (array of folder IDs from the root down to
+	 * the open folder at the time of the drop).
+	 */
+	currentPathIds: string[];
 }

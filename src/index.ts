@@ -61,6 +61,7 @@ export type {
 	// Drag and drop
 	VobDragContext,
 	VobExternalDropContext,
+	VobDropContext,
 } from './types';
 
 // ----------------------------------------------------------------

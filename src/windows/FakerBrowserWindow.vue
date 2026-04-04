@@ -11,7 +11,13 @@
 
 import { ref, computed, watch } from 'vue';
 import { VOB } from '../constants';
-import type { VobConfig, VobDataSpec, VobFlatItemInput, VobItem } from '../types';
+import type {
+	VobConfig,
+	VobDataSpec,
+	VobFlatItemInput,
+	VobItem,
+	VobExternalDropContext,
+} from '../types';
 import VueOmniBrowser from '../components/VueOmniBrowser.vue';
 import { generateFileTree } from '../utils/fileTreeGenerator';
 
@@ -87,6 +93,20 @@ const config = ref<VobConfig>({
 	dataMode:            VOB.DATA_MODE.FLAT,
 	enableMaterialIcons: true,
 	virtualRoot:         'Generated FS',
+
+	/**
+	 * Handle drops from the templates palette or other external sources.
+	 * Creates a new item in the hovered folder using the VobExternalDropContext payload.
+	 */
+	onExternalDrop(dragCtx, api, dropCtx) {
+		const extCtx = dragCtx as Partial<VobExternalDropContext>;
+		if (extCtx?.item) {
+			api.createItem({
+				...(extCtx.item as Omit<VobItem, 'id'>),
+				parentId: dropCtx.targetFolderId,
+			});
+		}
+	},
 	rows: [
 		{
 			type:    VOB.ROWS.NAV_BAR,

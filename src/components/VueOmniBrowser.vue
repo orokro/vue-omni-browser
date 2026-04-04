@@ -158,6 +158,8 @@ const contextMenu  = useContextMenu(engine, navigation, selection, clipboard, co
 
 // dragDrop — PNP-based drag-and-drop (no-ops gracefully if vue-pick-n-plop is absent).
 const instanceId = props.instanceId;
+// NOTE: publicApi is declared below. The lazy getter `() => publicApi` is safe
+// because it is only *called* during drop events (after setup completes).
 const dragDrop = useDragDrop(
 	engine,
 	navigation,
@@ -165,6 +167,7 @@ const dragDrop = useDragDrop(
 	configRef as Ref<VobConfig>,
 	dataSpecRef as Ref<VobDataSpec>,
 	instanceId,
+	() => publicApi,
 );
 
 /**

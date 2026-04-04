@@ -91,7 +91,9 @@ function handleSharedDataChanged(items: VobItem[]): void {
 provide('sharedBrowserCtx', {
 	get data()          { return sharedData.value; },
 	get dataSpec()      { return sharedDataSpec.value; },
-	onDataChanged: handleSharedDataChanged,
+	onDataChanged:      handleSharedDataChanged,
+	// Both panels get the same key so cross-panel drags are treated as moves.
+	dataSourceKey:      'shared-project-fs',
 });
 
 // ----------------------------------------------------------------
