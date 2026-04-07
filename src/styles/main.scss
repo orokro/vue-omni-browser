@@ -11,6 +11,10 @@
 @use './views';
 @use './overlays';
 
+body {
+	font-family: sans-serif;
+}
+
 // ----------------------------------------------------------------
 // Root container
 // ----------------------------------------------------------------
@@ -28,6 +32,7 @@
 	background: var(--vob-bg);
 	box-sizing: border-box;
 
+	// font-family: sans-serif;
 	*,
 	*::before,
 	*::after {
