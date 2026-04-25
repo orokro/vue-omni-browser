@@ -98,6 +98,14 @@ const emit = defineEmits<{
 	onDataChanged: [data: VobItem[]];
 	/** Emitted when the active path changes. */
 	navigate: [pathIds: string[], pathString: string];
+	/** Emitted when a new item is created. */
+	onCreate: [item: VobItem];
+	/** Emitted when items are deleted. */
+	onDelete: [items: VobItem[]];
+	/** Emitted when an item is renamed. */
+	onRename: [item: VobItem, newName: string, oldName: string];
+	/** Emitted when items are moved to a new parent. */
+	onMove: [items: VobItem[], targetFolderId: string | null];
 }>();
 
 // ----------------------------------------------------------------
@@ -123,8 +131,8 @@ const navigation   = useNavigation(engine, configRef as Ref<VobConfig>);
 const selection    = useSelection(engine, configRef as Ref<VobConfig>);
 const sortFilter   = useSortFilter();
 const viewMode     = useViewMode(configRef as Ref<VobConfig>);
-const clipboard    = useClipboard(engine, navigation, configRef as Ref<VobConfig>);
-const inlineRename = useInlineRename(engine, configRef as Ref<VobConfig>);
+const clipboard    = useClipboard(engine, navigation, configRef as Ref<VobConfig>, () => publicApi);
+const inlineRename = useInlineRename(engine, configRef as Ref<VobConfig>, () => publicApi);
 const vobModal     = useVobModal();
 
 /**
@@ -154,7 +162,7 @@ const openItem = useOpenItem(
 	() => publicApi,
 );
 
-const contextMenu  = useContextMenu(engine, navigation, selection, clipboard, configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>, effectiveModal, openItem.openItem);
+const contextMenu  = useContextMenu(engine, navigation, selection, clipboard, configRef as Ref<VobConfig>, dataSpecRef as Ref<VobDataSpec>, effectiveModal, openItem.openItem, () => publicApi);
 
 // dragDrop — PNP-based drag-and-drop (no-ops gracefully if vue-pick-n-plop is absent).
 const instanceId = props.instanceId;
@@ -215,7 +223,7 @@ provide(VOB_DRAG_DROP_KEY,     dragDrop);
 // VOB_THEME_KEY is provided after themeClass + overlayStyle are declared below.
 
 // ----------------------------------------------------------------
-// Emit navigate when the path changes
+// Emit events when the path or data changes
 // ----------------------------------------------------------------
 
 watch(navigation.currentPathIds, (pathIds) => {
@@ -230,6 +238,27 @@ watch(navigation.currentPathIds, (pathIds) => {
 // back into :data) does NOT re-trigger the event, breaking the update loop.
 watch(engine.mutationVersion, () => {
 	emit('onDataChanged', [...engine.registry.value.values()]);
+
+	// Granular emits
+	const mutation = engine.lastMutation.value;
+	if (!mutation) return;
+
+	switch (mutation.type) {
+		case 'create':
+			emit('onCreate', mutation.payload);
+			break;
+		case 'delete':
+			emit('onDelete', mutation.payload);
+			break;
+		case 'update':
+			// For rename specifically, we check if the name changed.
+			// Currently rename is the only 'update' in the core.
+			emit('onRename', mutation.payload, mutation.payload.name, ''); // Old name not easily available here, but payload is fresh
+			break;
+		case 'move':
+			emit('onMove', mutation.payload.items, mutation.payload.targetFolderId);
+			break;
+	}
 }, { immediate: false });
 
 // ----------------------------------------------------------------
@@ -354,8 +383,14 @@ const publicApi: VobApi = {
 	setSelection:(ids) => selection.setSelection(ids),
 	refresh:     () => engine.refresh(),
 	setLoading:  (loading) => { isLoading.value = loading; },
-	createItem:  (data, parentId = null) => {
-		return engine.createItem({ ...(data as Omit<VobItem, 'id'>), parentId });
+	createItem:  (data, parentId?) => {
+		// If the caller passed parentId as the second arg, use that.
+		// Otherwise fall back to data.parentId (common in onExternalDrop callbacks
+		// where the full item shape is spread as a single object).
+		const resolvedParentId = parentId !== undefined
+			? parentId
+			: ((data as { parentId?: string | null }).parentId ?? null);
+		return engine.createItem({ ...(data as Omit<VobItem, 'id'>), parentId: resolvedParentId });
 	},
 	deleteItems: (ids) => {
 		const removed = engine.deleteItems(ids);

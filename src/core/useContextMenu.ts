@@ -20,7 +20,7 @@
  */
 
 import { ref, type Ref } from 'vue';
-import type { VobItem, VobConfig, VobDataSpec, VobMenuEntry } from '../types';
+import type { VobItem, VobConfig, VobDataSpec, VobMenuEntry, VobApi } from '../types';
 import type { VobEngine } from './useVobEngine';
 import type { VobNavigation } from './useNavigation';
 import type { VobSelection } from './useSelection';
@@ -99,6 +99,8 @@ const DEFAULT_ENTRIES: VobMenuEntry[] = [
 
 /**
  * Creates and returns the context menu state for a VueOmniBrowser instance.
+ *
+ * @param getApi - Lazy getter returning the public VobApi (avoids circular init).
  */
 export function useContextMenu(
 	engine: VobEngine,
@@ -109,6 +111,7 @@ export function useContextMenu(
 	_dataSpec: Ref<VobDataSpec>,
 	modal: VobModalState,
 	openItem: VobOpenItemState['openItem'],
+	getApi: () => VobApi,
 ): VobContextMenuState {
 	const isOpen   = ref(false);
 	const position = ref<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -244,7 +247,14 @@ export function useContextMenu(
 						close();
 						const confirmed = await modal.confirm(`Delete ${label}?`);
 						if (!confirmed) return;
-						engine.deleteItems([...selection.selectedIds.value]);
+						const ids = [...selection.selectedIds.value];
+						const onDelete = config.value.onDelete;
+						if (onDelete) {
+							const items = ids.map((id) => engine.getItem(id)).filter(Boolean) as VobItem[];
+							onDelete(items, getApi());
+						} else {
+							engine.deleteItems(ids);
+						}
 						selection.clearSelection();
 					},
 				};
@@ -256,18 +266,25 @@ export function useContextMenu(
 					label: 'New Folder', icon: 'create_new_folder',
 					disabled: readOnly,
 					action: () => {
-						const id = engine.createItem({
-							type: 'folder',
-							name: 'New Folder',
+						const folderName = engine.uniqueChildName('New Folder', navigation.currentFolderId.value);
+						const newItem = {
+							type: 'folder' as const,
+							name: folderName,
 							parentId: navigation.currentFolderId.value,
-						});
+						};
+						const onCreate = config.value.onCreate;
 						close();
-						if (id) {
-							setTimeout(() => {
-								document.dispatchEvent(
-									new CustomEvent('vob:rename-selected', { detail: { id } }),
-								);
-							}, 0);
+						if (onCreate) {
+							onCreate(newItem.type, newItem.name, newItem.parentId, getApi());
+						} else {
+							const id = engine.createItem(newItem);
+							if (id) {
+								setTimeout(() => {
+									document.dispatchEvent(
+										new CustomEvent('vob:rename-selected', { detail: { id } }),
+									);
+								}, 0);
+							}
 						}
 					},
 				};
@@ -370,14 +387,21 @@ export function useContextMenu(
 				label: 'New Folder', icon: 'create_new_folder',
 				disabled: readOnly,
 				action: () => {
-					const id = engine.createItem({ type: 'folder', name: 'New Folder', parentId: targetId });
+					const folderName = engine.uniqueChildName('New Folder', targetId);
+					const newItem = { type: 'folder' as const, name: folderName, parentId: targetId };
+					const onCreate = config.value.onCreate;
 					close();
-					if (id) {
-						setTimeout(() => {
-							document.dispatchEvent(
-								new CustomEvent('vob:rename-selected', { detail: { id } }),
-							);
-						}, 0);
+					if (onCreate) {
+						onCreate(newItem.type, newItem.name, newItem.parentId, getApi());
+					} else {
+						const id = engine.createItem(newItem);
+						if (id) {
+							setTimeout(() => {
+								document.dispatchEvent(
+									new CustomEvent('vob:rename-selected', { detail: { id } }),
+								);
+							}, 0);
+						}
 					}
 				},
 			},

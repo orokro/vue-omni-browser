@@ -88,6 +88,16 @@ export interface VobEngine {
 	 */
 	moveItems: (ids: string[], parentId: string | null) => string[];
 	/**
+	 * Returns a name that does not clash with any existing child of `parentId`.
+	 * If `baseName` is already unique, returns it unchanged.
+	 * Otherwise appends " 2", " 3", … until a free slot is found.
+	 *
+	 * @example
+	 * // "New Folder" already exists → returns "New Folder 2"
+	 * engine.uniqueChildName('New Folder', currentFolderId)
+	 */
+	uniqueChildName: (baseName: string, parentId: string | null) => string;
+	/**
 	 * A counter that increments each time the registry is rebuilt from source data.
 	 * Watchers can use this to detect bulk data changes vs. single-item mutations.
 	 */
@@ -99,6 +109,14 @@ export interface VobEngine {
 	 * feeding the emitted items back into :data does not create an update loop.
 	 */
 	mutationVersion: Readonly<Ref<number>>;
+	/**
+	 * Detailed information about the last internal mutation.
+	 * Used by the root component to emit granular events.
+	 */
+	lastMutation: Readonly<Ref<{
+		type: 'create' | 'delete' | 'update' | 'move';
+		payload: any;
+	} | null>>;
 }
 
 // ----------------------------------------------------------------
@@ -130,6 +148,7 @@ export function useVobEngine(
 	const registryVersion = shallowRef(0);
 	// Incremented only by internal user-driven mutations (not prop re-ingests).
 	const mutationVersion = shallowRef(0);
+	const lastMutation = shallowRef<{ type: 'create' | 'delete' | 'update' | 'move'; payload: any } | null>(null);
 
 	// ----------------------------------------------------------------
 	// Ingestion
@@ -240,6 +259,7 @@ export function useVobEngine(
 		const newMap = new Map(registry.value);
 		newMap.set(id, newItem);
 		registry.value = newMap;
+		lastMutation.value = { type: 'create', payload: newItem };
 		registryVersion.value++;
 		mutationVersion.value++;
 
@@ -252,10 +272,13 @@ export function useVobEngine(
 	 */
 	function deleteItems(ids: string[]): string[] {
 		const toRemove = new Set<string>();
+		const itemsToDelete: VobItem[] = [];
 
 		// Collect the target IDs plus all their descendants recursively.
 		function collectDescendants(id: string): void {
 			if (toRemove.has(id)) return;
+			const item = registry.value.get(id);
+			if (item) itemsToDelete.push(item);
 			toRemove.add(id);
 			for (const [childId, item] of registry.value) {
 				if (item.parentId === id) collectDescendants(childId);
@@ -271,6 +294,7 @@ export function useVobEngine(
 		const newMap = new Map(registry.value);
 		for (const id of toRemove) newMap.delete(id);
 		registry.value = newMap;
+		lastMutation.value = { type: 'delete', payload: itemsToDelete };
 		registryVersion.value++;
 		mutationVersion.value++;
 
@@ -286,9 +310,11 @@ export function useVobEngine(
 		const item = registry.value.get(id);
 		if (!item) return false;
 
+		const newItem = { ...item, ...updates } as VobItem;
 		const newMap = new Map(registry.value);
-		newMap.set(id, { ...item, ...updates } as VobItem);
+		newMap.set(id, newItem);
 		registry.value = newMap;
+		lastMutation.value = { type: 'update', payload: newItem };
 		registryVersion.value++;
 		mutationVersion.value++;
 
@@ -323,7 +349,8 @@ export function useVobEngine(
 			return result;
 		}
 
-		const moved: string[] = [];
+		const movedIds: string[] = [];
+		const movedItems: VobItem[] = [];
 		const newMap = new Map(registry.value);
 
 		for (const id of ids) {
@@ -336,17 +363,20 @@ export function useVobEngine(
 				if (getDescendantIds(id).has(parentId)) continue;
 			}
 
-			newMap.set(id, { ...item, parentId });
-			moved.push(id);
+			const newItem = { ...item, parentId };
+			newMap.set(id, newItem);
+			movedIds.push(id);
+			movedItems.push(newItem);
 		}
 
-		if (moved.length) {
+		if (movedIds.length) {
 			registry.value = newMap;
+			lastMutation.value = { type: 'move', payload: { items: movedItems, targetFolderId: parentId } };
 			registryVersion.value++;
 			mutationVersion.value++;
 		}
 
-		return moved;
+		return movedIds;
 	}
 
 	/**
@@ -355,6 +385,22 @@ export function useVobEngine(
 	 */
 	function refresh(): void {
 		ingestData(data.value);
+	}
+
+	/**
+	 * Returns a name that does not conflict with any existing child of parentId.
+	 * If baseName is already unique, returns it unchanged.
+	 * Otherwise tries "baseName 2", "baseName 3", … until a free slot is found.
+	 *
+	 * @param baseName - The preferred name.
+	 * @param parentId - The parent folder to check siblings against (null = root).
+	 */
+	function uniqueChildName(baseName: string, parentId: string | null): string {
+		const siblings = getChildren(parentId).map((i) => i.name);
+		if (!siblings.includes(baseName)) return baseName;
+		let counter = 2;
+		while (siblings.includes(`${baseName} ${counter}`)) counter++;
+		return `${baseName} ${counter}`;
 	}
 
 	// ----------------------------------------------------------------
@@ -375,5 +421,6 @@ export function useVobEngine(
 		deleteItems,
 		updateItem,
 		moveItems,
+		uniqueChildName,
 	};
 }

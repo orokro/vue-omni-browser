@@ -153,6 +153,10 @@ function handleDataChanged(items: VobItem[]): void {
 				theme="dark"
 				style="height: 100%;"
 				@on-data-changed="handleDataChanged"
+				@on-create="(item) => console.log(`[VOB Event] Created:`, item)"
+				@on-delete="(items) => console.log(`[VOB Event] Deleted:`, items)"
+				@on-rename="(item, newName) => console.log(`[VOB Event] Renamed:`, item.id, 'to', newName)"
+				@on-move="(items, target) => console.log(`[VOB Event] Moved:`, items.map(i => i.id), 'to', target)"
 			/>
 		</div>
 	</div>

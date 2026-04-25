@@ -10,7 +10,8 @@
  * cut-item dimming. The active mode is read from the injected view-mode state.
  */
 
-import { computed, inject } from 'vue';
+import { computed, inject, ref, useTemplateRef } from 'vue';
+import { useBoxSelection } from '../../core/useBoxSelection';
 import type { VobItem, VobMetaKeyDefinition } from '../../types';
 import { VOB } from '../../constants';
 import { vFocusSelect } from '@/directives/focusSelect';
@@ -186,12 +187,44 @@ function handleBgContextMenu(event: MouseEvent): void {
 /**
  * Handle keydown on rename input: Enter commits, Escape cancels.
  */
+// ----------------------------------------------------------------
+// Box selection
+// ----------------------------------------------------------------
+
+/** Map of item ID → row element, used for hit-testing during box select. */
+const rowRefs = ref<Map<string, HTMLElement>>(new Map());
+
+/** Called by :ref on each row to register / unregister its element. */
+function setRowRef(id: string, el: Element | null): void {
+	if (el) rowRefs.value.set(id, el as HTMLElement);
+	else     rowRefs.value.delete(id);
+}
+
+/** Returns the current bounding rect map for the box-selection hit-test. */
+function getItemRects(): Map<string, DOMRect> {
+	const out = new Map<string, DOMRect>();
+	for (const [id, el] of rowRefs.value) {
+		out.set(id, el.getBoundingClientRect());
+	}
+	return out;
+}
+
+const boxSel = useBoxSelection(
+	useTemplateRef('listBody'),
+	getItemRects,
+	orderedIds,
+	selection,
+	dragDrop.isDragging,
+);
+
 function handleRenameKeydown(event: KeyboardEvent): void {
 	if (event.key === 'Enter') {
 		event.preventDefault();
+		event.stopPropagation(); // Prevent global keyboard handler from acting on Enter after rename commits.
 		inlineRename.commitRename();
 	} else if (event.key === 'Escape') {
 		event.preventDefault();
+		event.stopPropagation();
 		inlineRename.cancelRename();
 	}
 }
@@ -224,12 +257,28 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 		</div>
 
 		<!-- Scrollable body -->
-		<div class="vob-list-body"
+		<div ref="listBody" class="vob-list-body"
 			@contextmenu.self.prevent="handleBgContextMenu($event)"
+			@click.self="selection.clearSelection()"
+			@mousedown="boxSel.onMouseDown($event)"
 			v-pnp-dropzone="dragDrop.dropzoneOpts(navigation.currentFolderId.value)">
+
+			<!-- Rubber-band selection overlay -->
+			<div
+				v-if="boxSel.isSelecting.value && boxSel.rect.value"
+				class="vob-box-select"
+				:style="{
+					left:   boxSel.rect.value.x + 'px',
+					top:    boxSel.rect.value.y + 'px',
+					width:  boxSel.rect.value.width + 'px',
+					height: boxSel.rect.value.height + 'px',
+				}"
+			/>
+
 			<div
 				v-for="item in currentItems"
 				:key="item.id"
+				:ref="(el) => setRowRef(item.id, el as Element | null)"
 				class="vob-list-row"
 				:class="{
 					'vob-list-row--selected': selection.isSelected(item.id),

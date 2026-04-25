@@ -156,9 +156,11 @@ function handleBgContextMenu(event: MouseEvent): void {
 function handleRenameKeydown(event: KeyboardEvent): void {
 	if (event.key === 'Enter') {
 		event.preventDefault();
+		event.stopPropagation(); // Prevent global keyboard handler from acting on Enter after rename commits.
 		inlineRename.commitRename();
 	} else if (event.key === 'Escape') {
 		event.preventDefault();
+		event.stopPropagation();
 		inlineRename.cancelRename();
 	}
 }
@@ -168,6 +170,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 	<div
 		class="vob-tree-view"
 		@contextmenu.self.prevent="handleBgContextMenu($event)"
+	@click.self="selection.clearSelection()"
 		v-pnp-dropzone="dragDrop.dropzoneOpts(navigation.currentFolderId.value)"
 	>
 		<div

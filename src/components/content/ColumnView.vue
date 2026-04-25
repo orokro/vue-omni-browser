@@ -228,9 +228,11 @@ function handleBgContextMenu(colParentId: string | null, event: MouseEvent): voi
 function handleRenameKeydown(event: KeyboardEvent): void {
 	if (event.key === 'Enter') {
 		event.preventDefault();
+		event.stopPropagation(); // Prevent global keyboard handler from acting on Enter after rename commits.
 		inlineRename.commitRename();
 	} else if (event.key === 'Escape') {
 		event.preventDefault();
+		event.stopPropagation();
 		inlineRename.cancelRename();
 	}
 }
@@ -243,6 +245,7 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 			:key="colIndex"
 			class="vob-column"
 			@contextmenu.self.prevent="handleBgContextMenu(col.parentId, $event)"
+			@click.self="selection.clearSelection()"
 			v-pnp-dropzone="dragDrop.dropzoneOpts(col.parentId)"
 		>
 			<!-- Items in this column -->

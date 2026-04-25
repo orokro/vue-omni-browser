@@ -15,7 +15,7 @@
  */
 
 import { ref, computed, type Ref } from 'vue';
-import type { VobConfig, VobItem, VobClipboard } from '../types';
+import type { VobConfig, VobClipboard, VobApi } from '../types';
 import type { VobEngine } from './useVobEngine';
 import type { VobNavigation } from './useNavigation';
 
@@ -68,14 +68,16 @@ export interface VobClipboardState {
 /**
  * Creates and returns the clipboard state for a VueOmniBrowser instance.
  *
- * @param engine - The VobEngine instance (registry access, create/delete).
- * @param navigation - The VobNavigation instance (current folder for paste target).
- * @param config - The reactive config ref (modals, readOnly).
+ * @param engine     - The VobEngine instance (registry access, create/delete).
+ * @param _navigation - The VobNavigation instance (current folder for paste target).
+ * @param config     - The reactive config ref (modals, readOnly, mutation hooks).
+ * @param getApi     - Lazy getter returning the public VobApi (avoids circular init).
  */
 export function useClipboard(
 	engine: VobEngine,
 	_navigation: VobNavigation,
 	config: Ref<VobConfig>,
+	getApi: () => VobApi,
 ): VobClipboardState {
 	const clipboard = ref<VobClipboard | null>(null);
 
@@ -188,22 +190,29 @@ export function useClipboard(
 			}
 
 			if (mode === 'copy') {
+				// Guard: cannot copy a folder into itself or one of its descendants.
+				if (targetParentId !== null) {
+					let checkId: string | null = targetParentId;
+					let isSelfCopy = false;
+					while (checkId !== null) {
+						if (checkId === sourceId) { isSelfCopy = true; break; }
+						checkId = engine.getItem(checkId)?.parentId ?? null;
+					}
+					if (isSelfCopy) {
+						console.warn(`[VueOmniBrowser] Cannot copy "${source.name}" into itself or a subfolder of itself.`);
+						continue;
+					}
+				}
+
 				// Deep clone the item tree.
 				const newId = cloneItemTree(sourceId, targetParentId);
-				// If the name changed (conflict resolution), rename the new root.
+				// If the name changed (conflict resolution), rename the new root via engine.
 				if (finalName !== source.name && newId) {
-					const cloned = engine.getItem(newId);
-					if (cloned) {
-						// Rebuild the map entry with the new name.
-						const newMap = new Map(engine.registry.value);
-						newMap.set(newId, { ...cloned, name: finalName });
-						// Direct mutation — intentional internal use only.
-						(engine.registry as { value: Map<string, VobItem> }).value = newMap;
-					}
+					engine.updateItem(newId, { name: finalName });
 				}
 				if (newId) pastedIds.push(newId);
 			} else {
-				// Cut → move: update parentId and rename if needed.
+				// Cut → move: check for self-containment, then delegate to engine or hook.
 				const item = engine.getItem(sourceId);
 				if (!item) continue;
 
@@ -219,9 +228,19 @@ export function useClipboard(
 					continue;
 				}
 
-				const newMap = new Map(engine.registry.value);
-				newMap.set(sourceId, { ...item, parentId: targetParentId, name: finalName });
-				(engine.registry as { value: Map<string, VobItem> }).value = newMap;
+				const onMove = config.value.onMove;
+				if (onMove) {
+					// Controlled mode — inform the app; it updates :data itself.
+					const itemsToMove = [item];
+					onMove(itemsToMove, targetParentId, getApi());
+				} else {
+					// Uncontrolled mode — mutate through engine so mutationVersion increments.
+					engine.moveItems([sourceId], targetParentId);
+					// Handle any rename needed after conflict resolution.
+					if (finalName !== item.name) {
+						engine.updateItem(sourceId, { name: finalName });
+					}
+				}
 				pastedIds.push(sourceId);
 			}
 		}

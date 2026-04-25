@@ -202,6 +202,40 @@ export function useKeyboardShortcuts(
 			}
 		}
 
+		// ArrowDown / ArrowUp — move or extend selection through the visible item list.
+		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			const items = visibleItems();
+			if (items.length === 0) return false;
+
+			event.preventDefault();
+
+			const isDown   = event.key === 'ArrowDown';
+			const ids      = items.map((i) => i.id);
+			const selIds   = [...selection.selectedIds.value];
+
+			// Determine the "anchor" — the item we move away from.
+			// Use the last selected item for down, first for up (mirrors OS behaviour).
+			let anchorIdx  = -1;
+			if (selIds.length > 0) {
+				const pivot = isDown ? selIds[selIds.length - 1] : selIds[0];
+				anchorIdx = ids.indexOf(pivot);
+			}
+
+			const nextIdx = anchorIdx === -1
+				? (isDown ? 0 : ids.length - 1)
+				: Math.max(0, Math.min(ids.length - 1, anchorIdx + (isDown ? 1 : -1)));
+
+			const nextId = ids[nextIdx];
+			if (event.shiftKey) {
+				// Extend the selection to include the next item.
+				selection.handleClick(nextId, 'shift', ids);
+			} else {
+				// Move selection to the next item exclusively.
+				selection.handleClick(nextId, 'none', ids);
+			}
+			return true;
+		}
+
 		return false;
 	}
 
@@ -261,9 +295,10 @@ export function useKeyboardShortcuts(
 						break;
 					case VOB.ACTIONS.NEW_FOLDER:
 						if (!readOnly) {
+							const folderName = engine.uniqueChildName('New Folder', navigation.currentFolderId.value);
 							const id = engine.createItem({
 								type: 'folder',
-								name: 'New Folder',
+								name: folderName,
 								parentId: navigation.currentFolderId.value,
 							});
 							if (id) {

@@ -14,7 +14,7 @@
 
 import { ref, onUnmounted, type Ref } from 'vue';
 import type { VobEngine } from './useVobEngine';
-import type { VobConfig } from '../types';
+import type { VobApi, VobConfig } from '../types';
 
 // ----------------------------------------------------------------
 // Types
@@ -59,11 +59,13 @@ export interface VobInlineRenameState {
  * Creates and returns inline-rename state for a VueOmniBrowser instance.
  *
  * @param engine - The VobEngine instance (item lookup + updateItem).
- * @param config - The reactive config ref (checked for readOnly).
+ * @param config - The reactive config ref (checked for readOnly + onRename hook).
+ * @param getApi - Lazy getter returning the public VobApi (avoids circular init).
  */
 export function useInlineRename(
 	engine: VobEngine,
 	config: Ref<VobConfig>,
+	getApi: () => VobApi,
 ): VobInlineRenameState {
 	const renamingId = ref<string | null>(null);
 	const renameValue = ref('');
@@ -85,14 +87,24 @@ export function useInlineRename(
 	}
 
 	/**
-	 * Save the rename. Clears the renaming state afterwards.
+	 * Save the rename. If config.onRename is provided, delegates to the hook
+	 * (controlled mode — caller owns state). Otherwise mutates via engine directly.
+	 * Clears the renaming state afterwards regardless.
 	 */
 	function commitRename(): void {
 		if (!renamingId.value) return;
 
 		const trimmed = renameValue.value.trim();
 		if (trimmed) {
-			engine.updateItem(renamingId.value, { name: trimmed });
+			const onRename = config.value.onRename;
+			if (onRename) {
+				const item = engine.getItem(renamingId.value);
+				if (item) {
+					onRename(item, trimmed, getApi());
+				}
+			} else {
+				engine.updateItem(renamingId.value, { name: trimmed });
+			}
 		}
 
 		renamingId.value = null;

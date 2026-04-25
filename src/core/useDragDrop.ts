@@ -321,14 +321,37 @@ export function useDragDrop(
 							? [...new Set(pnpGroup.flatMap((g) => g.selectedItems.map((i) => i.id)))]
 							: (vobCtx as VobDragContext).selectedItems.map((i) => i.id);
 
+						// Filter out items whose name already exists in the target folder.
+						// (Drag-drop is synchronous, so we can't prompt — skip conflicts.)
+						const targetSiblingNames = new Set(
+							engine.getChildren(targetId).map((i) => i.name),
+						);
+						const safeIds = idsToMove.filter((id) => {
+							const item = engine.getItem(id);
+							if (!item) return false;
+							// Skip if an item with the same name already lives in target
+							// AND it isn't the item itself moving within the same parent.
+							if (targetSiblingNames.has(item.name) && item.parentId !== targetId) {
+								console.warn(
+									`[VueOmniBrowser] Drag blocked: "${item.name}" already exists in the target folder.`,
+								);
+								return false;
+							}
+							return true;
+						});
+
+						if (safeIds.length === 0) {
+							return;
+						}
+
 						const onMove = config.value.onMove;
 						if (onMove) {
-							const items = idsToMove
+							const items = safeIds
 								.map((id) => engine.getItem(id))
 								.filter((i): i is VobItem => i !== undefined);
 							onMove(items, targetId, getApi());
 						} else {
-							engine.moveItems(idsToMove, targetId);
+							engine.moveItems(safeIds, targetId);
 						}
 
 						selection.clearSelection();

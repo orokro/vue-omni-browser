@@ -8,7 +8,8 @@
  * scale proportionally via a CSS custom property `--vob-zoom`.
  */
 
-import { computed, inject } from 'vue';
+import { computed, inject, ref, useTemplateRef } from 'vue';
+import { useBoxSelection } from '../../core/useBoxSelection';
 import type { VobItem } from '../../types';
 import { vFocusSelect } from '@/directives/focusSelect';
 import { vPnpDraggable, vPnpDropzone } from 'vue-pick-n-plop';
@@ -104,28 +105,75 @@ function handleBgContextMenu(event: MouseEvent): void {
 }
 
 // ----------------------------------------------------------------
+// Box selection
+// ----------------------------------------------------------------
+
+const cellRefs = ref<Map<string, HTMLElement>>(new Map());
+
+function setCellRef(id: string, el: Element | null): void {
+	if (el) cellRefs.value.set(id, el as HTMLElement);
+	else     cellRefs.value.delete(id);
+}
+
+function getItemRects(): Map<string, DOMRect> {
+	const out = new Map<string, DOMRect>();
+	for (const [id, el] of cellRefs.value) {
+		out.set(id, el.getBoundingClientRect());
+	}
+	return out;
+}
+
+const boxSel = useBoxSelection(
+	useTemplateRef('iconGrid'),
+	getItemRects,
+	orderedIds,
+	selection,
+	dragDrop.isDragging,
+);
+
+// ----------------------------------------------------------------
 // Inline rename
 // ----------------------------------------------------------------
 
 function handleRenameKeydown(event: KeyboardEvent): void {
 	if (event.key === 'Enter') {
 		event.preventDefault();
+		event.stopPropagation(); // Prevent global keyboard handler from acting on Enter after rename commits.
 		inlineRename.commitRename();
 	} else if (event.key === 'Escape') {
 		event.preventDefault();
+		event.stopPropagation();
 		inlineRename.cancelRename();
 	}
 }
 </script>
 
 <template>
-	<div class="vob-icon-view" :style="zoomStyle" @contextmenu.self.prevent="handleBgContextMenu($event)">
-		<div class="vob-icon-grid"
+	<div class="vob-icon-view" :style="zoomStyle"
+		@contextmenu.self.prevent="handleBgContextMenu($event)"
+		@click.self="selection.clearSelection()">
+		<div ref="iconGrid" class="vob-icon-grid"
 			@contextmenu.self.prevent="handleBgContextMenu($event)"
+			@click.self="selection.clearSelection()"
+			@mousedown="boxSel.onMouseDown($event)"
 			v-pnp-dropzone="dragDrop.dropzoneOpts(navigation.currentFolderId.value)">
+
+			<!-- Rubber-band selection overlay -->
+			<div
+				v-if="boxSel.isSelecting.value && boxSel.rect.value"
+				class="vob-box-select"
+				:style="{
+					left:   boxSel.rect.value.x + 'px',
+					top:    boxSel.rect.value.y + 'px',
+					width:  boxSel.rect.value.width + 'px',
+					height: boxSel.rect.value.height + 'px',
+				}"
+			/>
+
 			<div
 				v-for="item in currentItems"
 				:key="item.id"
+				:ref="(el) => setCellRef(item.id, el as Element | null)"
 				class="vob-icon-cell"
 				:class="{
 					'vob-icon-cell--selected': selection.isSelected(item.id),

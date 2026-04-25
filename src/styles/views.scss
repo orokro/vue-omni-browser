@@ -32,6 +32,16 @@
 	}
 }
 
+// Rubber-band box selection overlay — used in all views
+.vob-box-select {
+	position: fixed;
+	pointer-events: none;
+	z-index: 9999;
+	border: 1px solid var(--vob-accent, #4fc3f7);
+	background: color-mix(in srgb, var(--vob-accent, #4fc3f7) 15%, transparent);
+	border-radius: 2px;
+}
+
 // ================================================================
 // ListView (list mode + details mode)
 // ================================================================
@@ -103,6 +113,7 @@
 	flex: 1;
 	overflow-y: auto;
 	overflow-x: hidden;
+	position: relative; // Stacking context for the box-select overlay
 
 	// Custom scrollbar
 	scrollbar-width: thin;
