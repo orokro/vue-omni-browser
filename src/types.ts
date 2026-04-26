@@ -451,25 +451,47 @@ export interface VobConfig {
  * All values map to CSS custom properties on the root browser element.
  */
 export interface VobTheme {
-	/** Two alternating row background colours for list/details/columns views. */
-	rowColors?: [string, string];
-	/** Primary accent / selection highlight colour. */
-	accentColor?: string;
-	/** Main background of the content area. */
+	// Colors
 	backgroundColor?: string;
-	/** Background of selected items. */
-	selectionColor?: string;
-	/** Primary text colour. */
-	textColor?: string;
-	/** Muted/secondary text (used for virtual root label, meta values, etc.). */
-	mutedTextColor?: string;
-	/** Border / separator colour. */
+	backgroundColorAlt?: string;
+	surfaceColor?: string;
+	surfaceColorRaised?: string;
 	borderColor?: string;
+
+	textColor?: string;
+	textColorMuted?: string;
+	textColorOnAccent?: string;
+
+	accentColor?: string;
+	accentColorHover?: string;
+	selectionColor?: string;
+	selectionBorderColor?: string;
+
+	buttonHoverBackgroundColor?: string;
+	buttonActiveBackgroundColor?: string;
+
+	scrollbarTrackColor?: string;
+	scrollbarThumbColor?: string;
+
+	rowColorEven?: string;
+	rowColorOdd?: string;
+	rowColorHover?: string;
+	rowColorSelected?: string;
+
+	// Dimensions & Typography
 	fontFamily?: string;
 	fontSize?: string;
 	iconSize?: string;
-	/** Fixed row height for list and details views. */
 	rowHeight?: string;
+	barHeight?: string;
+	borderRadius?: string;
+	indentWidth?: string;
+	iconColumnWidth?: string;
+	iconColumnHeight?: string;
+	columnMinWidth?: string;
+
+	/** @deprecated Use rowColorEven/Odd instead. */
+	rowColors?: [string, string];
 	/** Arbitrary CSS custom property overrides. Keys must start with '--'. */
 	cssVars?: Record<string, string>;
 }

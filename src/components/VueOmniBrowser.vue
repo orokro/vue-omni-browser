@@ -283,23 +283,43 @@ watch(viewMode.viewMode, (newMode, oldMode) => {
 // ----------------------------------------------------------------
 
 const THEME_VAR_MAP: Array<[keyof VobTheme, string]> = [
-	['backgroundColor',  '--vob-bg'],
-	['accentColor',      '--vob-accent'],
-	['selectionColor',   '--vob-selection-bg'],
-	['textColor',        '--vob-text'],
-	['mutedTextColor',   '--vob-text-muted'],
-	['borderColor',      '--vob-border'],
-	['fontFamily',       '--vob-font-family'],
-	['fontSize',         '--vob-font-size'],
-	['iconSize',         '--vob-icon-size'],
-	['rowHeight',        '--vob-row-height'],
+	['backgroundColor',                '--vob-bg'],
+	['backgroundColorAlt',             '--vob-bg-alt'],
+	['surfaceColor',                   '--vob-surface'],
+	['surfaceColorRaised',             '--vob-surface-raised'],
+	['borderColor',                    '--vob-border'],
+	['textColor',                      '--vob-text'],
+	['textColorMuted',                 '--vob-text-muted'],
+	['textColorOnAccent',              '--vob-text-on-accent'],
+	['accentColor',                    '--vob-accent'],
+	['accentColorHover',               '--vob-accent-hover'],
+	['selectionColor',                 '--vob-selection-bg'],
+	['selectionBorderColor',           '--vob-selection-border'],
+	['buttonHoverBackgroundColor',     '--vob-btn-hover-bg'],
+	['buttonActiveBackgroundColor',    '--vob-btn-active-bg'],
+	['scrollbarTrackColor',            '--vob-scrollbar-track'],
+	['scrollbarThumbColor',            '--vob-scrollbar-thumb'],
+	['rowColorEven',                   '--vob-row-even'],
+	['rowColorOdd',                    '--vob-row-odd'],
+	['rowColorHover',                  '--vob-row-hover'],
+	['rowColorSelected',               '--vob-row-selected'],
+	['fontFamily',                     '--vob-font-family'],
+	['fontSize',                       '--vob-font-size'],
+	['iconSize',                       '--vob-icon-size'],
+	['rowHeight',                      '--vob-row-height'],
+	['barHeight',                      '--vob-bar-height'],
+	['borderRadius',                   '--vob-border-radius'],
+	['indentWidth',                    '--vob-indent-width'],
+	['iconColumnWidth',                '--vob-icon-col-width'],
+	['iconColumnHeight',               '--vob-icon-col-height'],
+	['columnMinWidth',                 '--vob-col-min-width'],
 ];
 
 const themeClass = computed(() => {
 	if (props.theme === 'light') return 'vob-theme-light';
 	if (props.theme === 'dark')  return 'vob-theme-dark';
-	// Object theme — default to dark, user overrides via cssVars
-	return 'vob-theme-dark';
+	// Object theme — return empty string so inline :style wins completely
+	return '';
 });
 
 const themeVars = computed<Record<string, string>>(() => {
@@ -311,6 +331,7 @@ const themeVars = computed<Record<string, string>>(() => {
 		const val = t[key] as string | undefined;
 		if (val) vars[cssVar] = val;
 	}
+	// Legacy rowColors support
 	if (t.rowColors) {
 		vars['--vob-row-even'] = t.rowColors[0];
 		vars['--vob-row-odd']  = t.rowColors[1];

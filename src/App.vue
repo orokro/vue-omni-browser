@@ -19,7 +19,7 @@
  * provide() and injected in the panel wrapper components.
  */
 
-import { ref, provide } from 'vue';
+import { ref, provide, reactive } from 'vue';
 import { WindowManager, FRAME_STYLE } from 'vue-win-mgr';
 import type { AvailableWindow, LayoutFrame } from 'vue-win-mgr';
 import 'vue-win-mgr/dist/style.css';
@@ -33,6 +33,25 @@ import SharedBrowserPanelB from './windows/wm/SharedBrowserPanelB.vue';
 import FakerBrowserWindow  from './windows/FakerBrowserWindow.vue';
 import DropTargetWindow    from './windows/DropTargetWindow.vue';
 import TemplatesWindow     from './windows/TemplatesWindow.vue';
+import ThemeSwitch         from './windows/ThemeSwitch.vue';
+
+// ----------------------------------------------------------------
+// Theme State
+// ----------------------------------------------------------------
+
+const themeState = reactive({
+	current: 'dark' as any
+});
+
+function setTheme(theme: any) {
+	themeState.current = theme;
+}
+
+// Provide the state object directly for reliable reactivity.
+provide('themeCtx', {
+	state: themeState,
+	setTheme
+});
 
 // ----------------------------------------------------------------
 // Shared DataSpec
@@ -88,13 +107,14 @@ function handleSharedDataChanged(items: VobItem[]): void {
 // Provide shared browser context (injected by the panel wrappers)
 // ----------------------------------------------------------------
 
-provide('sharedBrowserCtx', {
-	get data()          { return sharedData.value; },
-	get dataSpec()      { return sharedDataSpec.value; },
-	onDataChanged:      handleSharedDataChanged,
-	// Both panels get the same key so cross-panel drags are treated as moves.
-	dataSourceKey:      'shared-project-fs',
-});
+// Use reactive() to ensure that ctx.theme and ctx.data are reactive.
+provide('sharedBrowserCtx', reactive({
+	data:          sharedData,
+	dataSpec:      sharedDataSpec,
+	get theme()    { return themeState.current; },
+	onDataChanged: handleSharedDataChanged,
+	dataSourceKey: 'shared-project-fs',
+}));
 
 // ----------------------------------------------------------------
 // Available windows
@@ -125,6 +145,11 @@ const availableWindows: AvailableWindow[] = [
 		window: TemplatesWindow,
 		title:  'Templates',
 		slug:   'templates',
+	},
+	{
+		window: ThemeSwitch,
+		title:  'Theme Switcher',
+		slug:   'theme-switcher',
 	},
 ];
 
@@ -171,7 +196,7 @@ const layout: LayoutFrame[] = [
 	// Right column top: templates palette
 	{
 		name:    'sidebar-top',
-		windows: ['templates'],
+		windows: ['templates', 'theme-switcher'],
 		style:   FRAME_STYLE.TABBED,
 		top:     0,
 		left:    ['ref', 'main.right'],

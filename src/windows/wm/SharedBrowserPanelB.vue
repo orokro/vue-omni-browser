@@ -16,6 +16,7 @@ import type { VobDataSpec, VobFlatItemInput, VobItem } from '../../types';
 interface SharedBrowserCtx {
 	data:          VobFlatItemInput[];
 	dataSpec:      VobDataSpec;
+	theme:         any;
 	onDataChanged: (items: VobItem[]) => void;
 	/** Shared key so both panels treat each other's drags as same-source moves. */
 	dataSourceKey: string;
@@ -31,6 +32,7 @@ const ctx = inject<SharedBrowserCtx>('sharedBrowserCtx');
 		instance-id="shared-b"
 		:data="ctx.data"
 		:data-spec="ctx.dataSpec"
+		:theme="ctx.theme"
 		:data-source-key="ctx.dataSourceKey"
 		@data-changed="ctx.onDataChanged"
 	/>

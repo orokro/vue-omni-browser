@@ -41,12 +41,15 @@ interface Props {
 	 * drops from different keys go to onExternalDrop.
 	 */
 	dataSourceKey?: string;
+	/** Theme override. */
+	theme?: any;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	label:         'Shared Browser',
 	instanceId:    undefined,
 	dataSourceKey: undefined,
+	theme:         'dark',
 });
 
 const emit = defineEmits<{
@@ -137,10 +140,29 @@ const config = computed<VobConfig>(() => ({
 function handleDataChanged(items: VobItem[]): void {
 	emit('dataChanged', items);
 }
+const themeClass = computed(() => {
+	if (props.theme === 'light') return 'vob-theme-light';
+	if (props.theme === 'dark') return 'vob-theme-dark';
+	return 'vob-theme-dark';
+});
+
+const themeVars = computed(() => {
+	if (typeof props.theme === 'string') return {};
+	const vars: Record<string, string> = {};
+	const t = props.theme;
+	// Map common keys for the wrapper
+	if (t.backgroundColor) vars['--vob-bg'] = t.backgroundColor;
+	if (t.textColor) vars['--vob-text'] = t.textColor;
+	if (t.surfaceColor) vars['--vob-surface'] = t.surfaceColor;
+	if (t.borderColor) vars['--vob-border'] = t.borderColor;
+	if (t.textColorMuted) vars['--vob-text-muted'] = t.textColorMuted;
+	if (t.accentColor) vars['--vob-accent'] = t.accentColor;
+	return vars;
+});
 </script>
 
 <template>
-	<div class="shared-browser-window">
+	<div class="shared-browser-window" :class="[themeClass]" :style="themeVars">
 		<div class="shared-browser-window__toolbar">
 			<span class="shared-browser-window__label">{{ label }}</span>
 		</div>
@@ -150,7 +172,7 @@ function handleDataChanged(items: VobItem[]): void {
 				:data-spec="dataSpec"
 				:data="data"
 				:instance-id="instanceId"
-				theme="dark"
+				:theme="props.theme"
 				style="height: 100%;"
 				@on-data-changed="handleDataChanged"
 				@on-create="(item) => console.log(`[VOB Event] Created:`, item)"
@@ -168,18 +190,19 @@ function handleDataChanged(items: VobItem[]): void {
 	flex-direction: column;
 	height: 100%;
 	overflow: hidden;
-	background: #111;
+	background: var(--vob-bg, #111);
+	color: var(--vob-text, #ccc);
 
 	&__toolbar {
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
 		padding: 4px 10px;
-		background: #1a1a1a;
-		border-bottom: 1px solid #333;
+		background: var(--vob-surface, #1a1a1a);
+		border-bottom: 1px solid var(--vob-border, #333);
 		font-family: monospace;
 		font-size: 11px;
-		color: #888;
+		color: var(--vob-text-muted, #888);
 	}
 
 	&__label {
