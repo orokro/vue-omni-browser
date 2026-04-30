@@ -11,11 +11,12 @@
  * is applied; this view is intended for datasets in the hundreds of items range.
  */
 
-import { computed, ref, inject } from 'vue';
+import { computed, ref, inject, useTemplateRef } from 'vue';
 import type { VobItem } from '../../types';
 import { buildTreeRows, type TreeViewRow } from '../../utils/treeUtils';
 import { vFocusSelect } from '@/directives/focusSelect';
 import { vPnpDraggable, vPnpDropzone } from 'vue-pick-n-plop';
+import { useBoxSelection } from '../../core/useBoxSelection';
 import {
 	VOB_ENGINE_KEY,
 	VOB_NAVIGATION_KEY,
@@ -164,18 +165,67 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 		inlineRename.cancelRename();
 	}
 }
+
+// ----------------------------------------------------------------
+// Box selection — same shape as ListView/IconView. Each tree row
+// registers its DOM ref via `setRowRef`; getItemRects reads back
+// the live bounding rects so dragging a marquee over rows works
+// regardless of indent depth or scroll offset.
+// ----------------------------------------------------------------
+
+const rowRefs = ref<Map<string, HTMLElement>>(new Map());
+
+function setRowRef(id: string, el: Element | null): void {
+	if (el) rowRefs.value.set(id, el as HTMLElement);
+	else    rowRefs.value.delete(id);
+}
+
+function getItemRects(): Map<string, DOMRect> {
+	const out = new Map<string, DOMRect>();
+	for (const [id, el] of rowRefs.value) {
+		out.set(id, el.getBoundingClientRect());
+	}
+	return out;
+}
+
+/** Visible-row IDs in display order (used by box-select for shift-extend). */
+const visibleIds = computed<string[]>(() => treeRows.value.map((r) => r.item.id));
+
+const boxSel = useBoxSelection(
+	useTemplateRef('treeView'),
+	getItemRects,
+	visibleIds,
+	selection,
+	dragDrop.isDragging,
+);
 </script>
 
 <template>
 	<div
+		ref="treeView"
 		class="vob-tree-view"
 		@contextmenu.self.prevent="handleBgContextMenu($event)"
-	@click.self="selection.clearSelection()"
+		@click.self="selection.clearSelection()"
+		@mousedown="boxSel.onMouseDown($event)"
 		v-pnp-dropzone="dragDrop.dropzoneOpts(navigation.currentFolderId.value)"
 	>
+		<!-- Rubber-band selection overlay (position: fixed against
+		     viewport coords, so this can live anywhere). -->
+		<div
+			v-if="boxSel.isSelecting.value && boxSel.rect.value"
+			class="vob-box-select"
+			:style="{
+				left:   boxSel.rect.value.x + 'px',
+				top:    boxSel.rect.value.y + 'px',
+				width:  boxSel.rect.value.width + 'px',
+				height: boxSel.rect.value.height + 'px',
+			}"
+		/>
+
 		<div
 			v-for="row in treeRows"
 			:key="row.item.id"
+			:ref="(el) => setRowRef(row.item.id, el as Element | null)"
 			class="vob-tree-row"
 			:class="{
 				'vob-tree-row--selected': selection.isSelected(row.item.id),

@@ -123,8 +123,15 @@ function getItemRects(): Map<string, DOMRect> {
 	return out;
 }
 
+// Box-select target is the OUTER `.vob-icon-view` (the scrollable
+// viewport that fills the panel) rather than `.vob-icon-grid` (the
+// inner flex-wrap which only sizes to its row of icons). Otherwise
+// clicking in empty space below the icon row — where there's still
+// plenty of viewport but no grid pixels — wouldn't start a drag.
+// The rubber-band overlay uses `position: fixed` against viewport
+// coordinates, so it doesn't matter which ancestor renders it.
 const boxSel = useBoxSelection(
-	useTemplateRef('iconGrid'),
+	useTemplateRef('iconView'),
 	getItemRects,
 	orderedIds,
 	selection,
@@ -149,13 +156,13 @@ function handleRenameKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-	<div class="vob-icon-view" :style="zoomStyle"
+	<div ref="iconView" class="vob-icon-view" :style="zoomStyle"
 		@contextmenu.self.prevent="handleBgContextMenu($event)"
-		@click.self="selection.clearSelection()">
-		<div ref="iconGrid" class="vob-icon-grid"
+		@click.self="selection.clearSelection()"
+		@mousedown="boxSel.onMouseDown($event)">
+		<div class="vob-icon-grid"
 			@contextmenu.self.prevent="handleBgContextMenu($event)"
 			@click.self="selection.clearSelection()"
-			@mousedown="boxSel.onMouseDown($event)"
 			v-pnp-dropzone="dragDrop.dropzoneOpts(navigation.currentFolderId.value)">
 
 			<!-- Rubber-band selection overlay -->

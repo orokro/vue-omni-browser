@@ -37,6 +37,44 @@ export interface VobItem {
 	parentId: string | null;
 	/** When true, hidden by default unless config.showHidden is enabled. */
 	hidden?: boolean;
+
+	// ----------------------------------------------------------------
+	// Read-only flags
+	// ----------------------------------------------------------------
+	//
+	// Hosts can mark individual items as protected against specific
+	// mutations. The engine enforces these flags at every mutation
+	// entry point — so even if a context-menu action somehow fires
+	// against a protected item, the engine refuses to mutate. UI
+	// layers should also surface the flags (e.g. dim the Delete
+	// menu entry) so the user understands why an action's a no-op.
+
+	/**
+	 * When true, the item cannot be deleted. `engine.deleteItems`
+	 * silently skips ids whose item has this flag, including any
+	 * cascaded descendant deletes that would have removed it.
+	 *
+	 * Typical use: protected named buckets in a virtual filesystem
+	 * (e.g. `assets://shaders/`) that the host owns and the user
+	 * shouldn't be able to remove.
+	 */
+	noDelete?: boolean;
+
+	/**
+	 * When true, the item's `name` cannot be changed. `engine.updateItem`
+	 * silently strips a `name` field from the patch when this flag is
+	 * set. Other fields can still be updated — useful for things that
+	 * are locked structurally but whose other metadata is editable.
+	 */
+	noRename?: boolean;
+
+	/**
+	 * When true, drops onto this item are rejected by `dragDrop`'s
+	 * dropzone validators. Use for "leaf-only" containers that
+	 * shouldn't accept new children, or for fully-locked folders.
+	 */
+	noDrop?: boolean;
+
 	/** Any additional user-defined metadata (size, createdAt, etc.). */
 	[key: string]: unknown;
 }
@@ -224,6 +262,16 @@ export interface VobNavBarRow {
 	/** CSS height string (default: '40px'). */
 	height?: string;
 	buttons?: VobMenuEntry[];
+	/**
+	 * When true, the magnifier-icon search toggle on the right side of
+	 * the bar is hidden. The search functionality itself is unaffected
+	 * — it can still be driven externally via the `searchQuery` prop
+	 * on `<VueOmniBrowser>` (typically wired to a host-side search
+	 * input that lives in the panel's own header). Useful when the
+	 * host wants its own Blender-style search UI and just needs the
+	 * built-in chrome out of the way.
+	 */
+	hideSearch?: boolean;
 }
 
 export interface VobButtonsBarRow {
@@ -451,6 +499,19 @@ export interface VobConfig {
  * All values map to CSS custom properties on the root browser element.
  */
 export interface VobTheme {
+	/**
+	 * Which built-in preset's CSS-class colors should cascade as
+	 * the baseline before this object's overrides apply. Lets a
+	 * "mostly dark with a custom accent" theme inherit dark
+	 * fallbacks for every key it doesn't explicitly set, which
+	 * matters in particular for Teleport-mounted overlays
+	 * (modals, context menus) that can't reach the in-flow
+	 * theme class via DOM ancestry.
+	 *
+	 * Defaults to `'dark'` when omitted.
+	 */
+	baseTheme?: VobThemePreset;
+
 	// Colors
 	backgroundColor?: string;
 	backgroundColorAlt?: string;

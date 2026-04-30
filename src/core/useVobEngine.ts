@@ -268,31 +268,71 @@ export function useVobEngine(
 
 	/**
 	 * Removes items from the registry by ID. Also removes their descendants.
+	 *
+	 * Items marked `noDelete` are silently skipped — both directly-
+	 * targeted ids AND ids that would have been cascaded as descendants
+	 * of a deleted folder. So a delete-folder operation that contains a
+	 * protected child will preserve the child (it gets re-parented to
+	 * the deleted folder's parent so it doesn't dangle under a removed
+	 * ancestor).
+	 *
 	 * @returns The IDs that were actually removed (including cascaded descendants).
 	 */
 	function deleteItems(ids: string[]): string[] {
 		const toRemove = new Set<string>();
 		const itemsToDelete: VobItem[] = [];
+		const protectedSurvivors: { item: VobItem; reparentTo: string | null }[] = [];
 
 		// Collect the target IDs plus all their descendants recursively.
-		function collectDescendants(id: string): void {
+		// `reparentTo` tracks the would-be ancestor's parent so a
+		// protected descendant can be lifted out of the cascade.
+		function collectDescendants(id: string, reparentTo: string | null): void {
 			if (toRemove.has(id)) return;
 			const item = registry.value.get(id);
-			if (item) itemsToDelete.push(item);
+			if (!item) return;
+
+			if (item.noDelete) {
+				// Refuse to delete this item. If it's a descendant of
+				// something else we DO delete, lift it up to the
+				// ancestor's parent so the tree stays well-formed.
+				protectedSurvivors.push({ item, reparentTo });
+				// Walk children — they're still candidates for deletion
+				// unless they're also protected.
+				for (const [childId, child] of registry.value) {
+					if (child.parentId === id) collectDescendants(childId, id);
+				}
+				return;
+			}
+
+			itemsToDelete.push(item);
 			toRemove.add(id);
-			for (const [childId, item] of registry.value) {
-				if (item.parentId === id) collectDescendants(childId);
+			for (const [childId, child] of registry.value) {
+				if (child.parentId === id) collectDescendants(childId, id);
 			}
 		}
 
 		for (const id of ids) {
-			if (registry.value.has(id)) collectDescendants(id);
+			const item = registry.value.get(id);
+			if (!item) continue;
+			// Direct top-level protection: a noDelete item targeted
+			// directly is just skipped (no reparenting needed since
+			// it's still under its original parent).
+			if (item.noDelete) continue;
+			collectDescendants(id, item.parentId);
 		}
 
-		if (toRemove.size === 0) return [];
+		if (toRemove.size === 0 && protectedSurvivors.length === 0) return [];
 
 		const newMap = new Map(registry.value);
 		for (const id of toRemove) newMap.delete(id);
+		// Reparent any protected survivors whose original parent is
+		// now gone. Skip ones whose parent is intact (the cascade
+		// stopped at them).
+		for (const { item, reparentTo } of protectedSurvivors) {
+			if (toRemove.has(item.parentId ?? '')) {
+				newMap.set(item.id, { ...item, parentId: reparentTo });
+			}
+		}
 		registry.value = newMap;
 		lastMutation.value = { type: 'delete', payload: itemsToDelete };
 		registryVersion.value++;
@@ -304,13 +344,32 @@ export function useVobEngine(
 	/**
 	 * Patches a single item in the registry with the provided fields.
 	 * Triggers reactivity by replacing the registry Map reference.
+	 *
+	 * Honors the `noRename` flag: if the item has `noRename: true` and
+	 * the patch tries to set `name`, that one field is silently dropped
+	 * from the patch. Other fields still apply — so a noRename item can
+	 * still update its mtime, size, custom metadata, etc.
+	 *
 	 * @returns True if the item was found and updated; false if the ID is unknown.
 	 */
 	function updateItem(id: string, updates: Partial<Omit<VobItem, 'id'>>): boolean {
 		const item = registry.value.get(id);
 		if (!item) return false;
 
-		const newItem = { ...item, ...updates } as VobItem;
+		// Strip the protected `name` field when noRename is set. Use a
+		// shallow clone so we don't mutate the caller's argument.
+		let effectiveUpdates = updates;
+		if (item.noRename && 'name' in updates) {
+			const { name: _droppedName, ...rest } = updates;
+			void _droppedName;
+			effectiveUpdates = rest;
+			// If the only thing the caller asked to change was the
+			// name, this is a true no-op — bail without bumping
+			// versions or firing watchers.
+			if (Object.keys(effectiveUpdates).length === 0) return false;
+		}
+
+		const newItem = { ...item, ...effectiveUpdates } as VobItem;
 		const newMap = new Map(registry.value);
 		newMap.set(id, newItem);
 		registry.value = newMap;
@@ -412,6 +471,14 @@ export function useVobEngine(
 		rootIds,
 		registryVersion,
 		mutationVersion,
+		// lastMutation was declared on the VobEngine interface and
+		// populated by createItem / deleteItems / updateItem /
+		// moveItems, but the return object had been missing it — so
+		// the root component's granular event emit (`onCreate` /
+		// `onDelete` / `onRename` / `onMove`) had nothing to read
+		// off the engine. Wired up so consumers actually get the
+		// per-mutation payloads they're entitled to.
+		lastMutation,
 		getItem,
 		getChildren,
 		getTypeDefinition,

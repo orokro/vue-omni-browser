@@ -9,7 +9,8 @@
     ".": {
       "import": "./dist/vue-omni-browser.js",
       "require": "./dist/vue-omni-browser.umd.cjs"
-    }
+    },
+    "./style.css": "./dist/vue-omni-browser.css"
   },
   "files": [
     "dist"

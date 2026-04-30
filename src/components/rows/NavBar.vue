@@ -219,8 +219,14 @@ const barStyle = computed(() =>
 			</div>
 		</div>
 
-		<!-- Search toggle -->
-		<div class="vob-navbar__search" :class="{ 'vob-navbar__search--open': searchActive }">
+		<!-- Search toggle (hidden when row.hideSearch is true so a host
+		     can drive search via the `searchQuery` prop with its own
+		     UI). -->
+		<div
+			v-if="!row.hideSearch"
+			class="vob-navbar__search"
+			:class="{ 'vob-navbar__search--open': searchActive }"
+		>
 			<input
 				v-if="searchActive"
 				ref="searchInputRef"

@@ -151,12 +151,37 @@ export function useBoxSelection(
 		}
 	}
 
-	function onMouseUp(): void {
+	function onMouseUp(event: MouseEvent): void {
 		if (!isSelecting.value) return;
+
+		// If the user actually dragged a box (not just a click that
+		// happened to land on the background), suppress the trailing
+		// `click` event that fires next. Otherwise any background-
+		// click-to-clear handler on the content view would immediately
+		// blow away the selection we just made — that's the source of
+		// the "coin toss whether the selection sticks" race.
+		const r = rect.value;
+		const draggedBox = !!(r && (r.width > 2 || r.height > 2));
+
 		isSelecting.value = false;
 		rect.value        = undefined;
 		document.removeEventListener('mousemove', onMouseMove);
 		document.removeEventListener('mouseup',   onMouseUp);
+
+		if (draggedBox) {
+			// One-shot capture-phase listener — fires before any
+			// "click on background → clear selection" handler bound
+			// in the bubble phase, so we can swallow the click before
+			// it reaches them. Removed by the same callback so it
+			// only ever runs once.
+			const swallowNextClick = (e: MouseEvent) => {
+				e.preventDefault();
+				e.stopImmediatePropagation();
+				document.removeEventListener('click', swallowNextClick, true);
+			};
+			document.addEventListener('click', swallowNextClick, true);
+			void event; // noop reference so TS doesn't drop the param if unused later
+		}
 	}
 
 	// ----------------------------------------------------------------
@@ -170,11 +195,39 @@ export function useBoxSelection(
 	function onMouseDown(event: MouseEvent): void {
 		// Only handle left-button drags on the container background itself.
 		if (event.button !== 0) return;
-		// If the target is not the container or the direct scroll wrapper, skip —
-		// item rows will handle their own clicks.
-		if (event.target !== event.currentTarget) return;
 		// Never start a box during a PNP drag.
 		if (isDragging.value) return;
+
+		// Only start a box-select when the click landed on background —
+		// NOT on an item row. The previous check
+		//     event.target !== event.currentTarget
+		// was too strict: it failed for any descendant element, even
+		// purely-layout flex wrappers / spacer divs that aren't items.
+		// Result was the user-visible bug "box only triggers when you
+		// click directly over the row of icons; clicking the empty
+		// space below does nothing."
+		//
+		// Walk up from the actual click target to the listener element
+		// and bail only if we encounter a real item row. Each content
+		// view's items carry their own marker class — currently
+		// `vob-list-row`, `vob-icon-cell` (column / tree views can
+		// extend this list as they grow). Anything else between the
+		// target and the container counts as background.
+		const ITEM_ROW_CLASSES = [
+			'vob-list-row',
+			'vob-icon-cell',
+			'vob-tree-row',
+			'vob-column-cell',
+		];
+		const container = event.currentTarget as Element | null;
+		let walker: Element | null = event.target as Element | null;
+		while (walker && walker !== container) {
+			for (const cls of ITEM_ROW_CLASSES) {
+				if (walker.classList?.contains(cls)) return;
+			}
+			walker = walker.parentElement;
+		}
+		// Reached the container without hitting an item row → background.
 
 		startX = event.clientX;
 		startY = event.clientY;

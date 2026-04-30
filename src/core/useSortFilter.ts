@@ -42,6 +42,15 @@ export interface VobSortFilter {
 	searchQuery: Ref<string>;
 
 	/**
+	 * When true, search expands to every item in the dataset rather
+	 * than just the children of the current folder. Wired end-to-end
+	 * on the public API surface; full view-level recursive read lands
+	 * in a follow-up so hosts can already drive the toggle from their
+	 * own UI without API churn later.
+	 */
+	recursiveSearch: Ref<boolean>;
+
+	/**
 	 * Set the sort key. If the same key is provided twice, the direction toggles.
 	 * Passing null resets to default (name, asc).
 	 */
@@ -55,6 +64,9 @@ export interface VobSortFilter {
 
 	/** Update the search query. */
 	setSearchQuery: (query: string) => void;
+
+	/** Toggle the recursive-search flag. */
+	setRecursiveSearch: (value: boolean) => void;
 
 	/**
 	 * Apply the active sort/filter state to the given item array.
@@ -81,6 +93,7 @@ export function useSortFilter(): VobSortFilter {
 	const sortDirection = ref<SortDirection>('asc');
 	const activeTypeFilter = ref<string | null>(null);
 	const searchQuery = ref<string>('');
+	const recursiveSearch = ref<boolean>(false);
 
 	// ----------------------------------------------------------------
 	// Setters
@@ -115,6 +128,10 @@ export function useSortFilter(): VobSortFilter {
 
 	function setSearchQuery(query: string): void {
 		searchQuery.value = query;
+	}
+
+	function setRecursiveSearch(value: boolean): void {
+		recursiveSearch.value = value;
 	}
 
 	// ----------------------------------------------------------------
@@ -199,10 +216,12 @@ export function useSortFilter(): VobSortFilter {
 		sortDirection,
 		activeTypeFilter,
 		searchQuery,
+		recursiveSearch,
 		setSortKey,
 		setSortDirection,
 		setTypeFilter,
 		setSearchQuery,
+		setRecursiveSearch,
 		applyToItems,
 		hasActiveFilter,
 	};

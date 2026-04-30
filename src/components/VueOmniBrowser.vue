@@ -24,7 +24,7 @@ import type {
 	VobApi,
 	VobItem,
 } from '../types';
-import { VOB } from '../constants';
+import { VOB, type VobViewMode } from '../constants';
 import { useVobEngine } from '../core/useVobEngine';
 import { useNavigation } from '../core/useNavigation';
 import { useSelection } from '../core/useSelection';
@@ -85,12 +85,78 @@ const props = withDefaults(defineProps<{
 	 * share the same page.
 	 */
 	instanceId?: string;
+
+	// ------------------------------------------------------------
+	// Controlled chrome props — let a host wrap VOB with its own
+	// search box / view-mode picker / type-filter dropdown and
+	// drive the internal state through props instead of the built-
+	// in chrome rows. Each is bidirectional via Vue 3 named
+	// v-model: the prop seeds + tracks state, and the
+	// matching `update:<prop>` event fires whenever VOB changes
+	// the value internally (e.g. user picks a view mode from the
+	// context menu). Hosts can use plain props for a one-way
+	// controlled binding, or v-model:viewMode etc. for two-way.
+	// ------------------------------------------------------------
+
+	/**
+	 * Live search query text. When non-empty, items are filtered to
+	 * those whose name contains this string (case-insensitive).
+	 * Combine with `recursiveSearch` to search across the whole
+	 * dataset rather than just the current folder.
+	 */
+	searchQuery?: string;
+
+	/**
+	 * If true, search applies across every item in the registry —
+	 * not just the children of the current folder. Useful for a
+	 * Blender-style "search the whole library" toggle.
+	 *
+	 * NOTE: the prop is plumbed end-to-end on the API surface but
+	 * the actual recursive read at render-time will be wired in a
+	 * follow-up; for now the value lives on `sortFilter` so a
+	 * future view-level read can opt into it. Listed here so host
+	 * UIs can be built against the final API shape.
+	 */
+	recursiveSearch?: boolean;
+
+	/** Active view mode (`'list' | 'details' | 'icons' | 'tree' | 'columns'`). */
+	viewMode?: VobViewMode;
+
+	/**
+	 * Active type-filter slug. Items whose `type` doesn't match are
+	 * hidden. Pass `null` (the default) to show every type.
+	 */
+	typeFilter?: string | null;
+
+	/**
+	 * Currently selected item IDs. Use as a one-way prop to drive
+	 * selection externally (e.g. "select-all-by-name" feature in
+	 * a host toolbar) or as a Vue 3 named v-model
+	 * (`v-model:selection="..."`) to subscribe reactively to the
+	 * user's in-VOB selection — typically wired into a host's
+	 * Inspector / properties panel so it can show metadata for
+	 * whatever the user just clicked on.
+	 *
+	 * The matching `update:selection` event is also fired with a
+	 * second payload — the resolved `VobItem[]` — so non-v-model
+	 * listeners can grab the rich items without a second lookup.
+	 */
+	selection?: string[];
 }>(), {
 	config: () => ({}),
 	dataSpec: () => ({ types: [] }),
 	data: () => [],
 	theme: 'dark',
 	instanceId: undefined,
+	// `undefined` (not the default empty value) so we can
+	// distinguish "host left it alone" from "host explicitly set
+	// it to empty". The watchers below only sync inward when the
+	// prop is explicitly set.
+	searchQuery: undefined,
+	recursiveSearch: undefined,
+	viewMode: undefined,
+	typeFilter: undefined,
+	selection: undefined,
 });
 
 const emit = defineEmits<{
@@ -106,6 +172,22 @@ const emit = defineEmits<{
 	onRename: [item: VobItem, newName: string, oldName: string];
 	/** Emitted when items are moved to a new parent. */
 	onMove: [items: VobItem[], targetFolderId: string | null];
+
+	// v-model:<prop> companion emits — fired when VOB changes the
+	// corresponding state internally (user types in the built-in
+	// search input, picks a view mode from the context menu, etc.)
+	// so a host doing two-way binding stays in sync.
+	'update:searchQuery':     [value: string];
+	'update:recursiveSearch': [value: boolean];
+	'update:viewMode':        [value: VobViewMode];
+	'update:typeFilter':      [value: string | null];
+	/**
+	 * Selection-changed event. The first payload (the ID array)
+	 * satisfies Vue's v-model contract; the second payload is the
+	 * resolved `VobItem[]` so non-v-model listeners can grab rich
+	 * items without re-looking-them-up.
+	 */
+	'update:selection':       [ids: string[], items: VobItem[]];
 }>();
 
 // ----------------------------------------------------------------
@@ -131,6 +213,83 @@ const navigation   = useNavigation(engine, configRef as Ref<VobConfig>);
 const selection    = useSelection(engine, configRef as Ref<VobConfig>);
 const sortFilter   = useSortFilter();
 const viewMode     = useViewMode(configRef as Ref<VobConfig>);
+
+// ----------------------------------------------------------------
+// Controlled chrome props ↔ internal state (bidirectional)
+// ----------------------------------------------------------------
+//
+// Each controlled prop pairs an inward sync (prop → state) with an
+// outward sync (state → emit). The "values differ" guard inside
+// each watcher is what prevents the two from echo-pinging each
+// other forever: once they're in sync, neither watcher re-fires.
+//
+// Hosts can use these as plain one-way controlled props (set the
+// prop, ignore the emit) OR as Vue 3 named v-models
+// (`v-model:viewMode="..."`) for two-way binding when the user
+// changes state via in-VOB controls (context menu, keyboard, etc.).
+
+// searchQuery
+watch(() => props.searchQuery, (val) => {
+	if (val !== undefined && val !== sortFilter.searchQuery.value) {
+		sortFilter.setSearchQuery(val);
+	}
+}, { immediate: true });
+watch(sortFilter.searchQuery, (val) => {
+	if (val !== props.searchQuery) emit('update:searchQuery', val);
+});
+
+// recursiveSearch
+watch(() => props.recursiveSearch, (val) => {
+	if (val !== undefined && val !== sortFilter.recursiveSearch.value) {
+		sortFilter.setRecursiveSearch(val);
+	}
+}, { immediate: true });
+watch(sortFilter.recursiveSearch, (val) => {
+	if (val !== props.recursiveSearch) emit('update:recursiveSearch', val);
+});
+
+// viewMode
+watch(() => props.viewMode, (val) => {
+	if (val !== undefined && val !== viewMode.viewMode.value) {
+		viewMode.setViewMode(val);
+	}
+}, { immediate: true });
+watch(viewMode.viewMode, (val) => {
+	if (val !== props.viewMode) emit('update:viewMode', val);
+});
+
+// typeFilter
+watch(() => props.typeFilter, (val) => {
+	if (val !== undefined && val !== sortFilter.activeTypeFilter.value) {
+		sortFilter.setTypeFilter(val);
+	}
+}, { immediate: true });
+watch(sortFilter.activeTypeFilter, (val) => {
+	if (val !== props.typeFilter) emit('update:typeFilter', val);
+});
+
+// selection — bidirectional. The "values differ" guard works on
+// content equality (two arrays with the same ids in the same
+// order are considered equal) so a host re-feeding an emitted
+// array doesn't echo. We compare via length + every() rather
+// than reference identity since both sides are likely to allocate
+// fresh arrays on each update.
+function sameIdSet(a: string[] | undefined, b: Set<string>): boolean {
+	if (!a) return false;
+	if (a.length !== b.size) return false;
+	for (const id of a) if (!b.has(id)) return false;
+	return true;
+}
+watch(() => props.selection, (val) => {
+	if (val !== undefined && !sameIdSet(val, selection.selectedIds.value)) {
+		selection.setSelection(val);
+	}
+}, { immediate: true });
+watch(selection.selectedIds, (set) => {
+	const ids = [...set];
+	if (sameIdSet(props.selection, set)) return;
+	emit('update:selection', ids, selection.selectedItems.value);
+});
 const clipboard    = useClipboard(engine, navigation, configRef as Ref<VobConfig>, () => publicApi);
 const inlineRename = useInlineRename(engine, configRef as Ref<VobConfig>, () => publicApi);
 const vobModal     = useVobModal();
@@ -318,8 +477,15 @@ const THEME_VAR_MAP: Array<[keyof VobTheme, string]> = [
 const themeClass = computed(() => {
 	if (props.theme === 'light') return 'vob-theme-light';
 	if (props.theme === 'dark')  return 'vob-theme-dark';
-	// Object theme — return empty string so inline :style wins completely
-	return '';
+	// Custom theme object — cascade the dark preset's CSS as the
+	// baseline (or the explicitly-requested `baseTheme`) so any
+	// vars the user didn't override still resolve to sensible
+	// values in BOTH the in-flow component AND its Teleport
+	// overlays. Inline `themeVars` (style="..." on the same
+	// element) takes precedence over the cascaded class, so the
+	// user's custom values still win where set.
+	const base = (props.theme as VobTheme | undefined)?.baseTheme;
+	return base === 'light' ? 'vob-theme-light' : 'vob-theme-dark';
 });
 
 const themeVars = computed<Record<string, string>>(() => {
